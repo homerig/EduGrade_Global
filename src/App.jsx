@@ -1,4 +1,12 @@
 import "./styles/App.css";
+import { Link, Routes, Route } from "react-router-dom";
+
+import Home from "./pages/Home";
+import ConsultarEstudiantes from "./pages/ConsultarEstudiantes";
+import CrearEstudiante from "./pages/CrearEstudiante";
+import ConsultarInstituciones from "./pages/ConsultarInstituciones";
+import CrearInstitucion from "./pages/CrearInstitucion";
+import AnadirCurso from "./pages/AnadirCurso";
 
 function App() {
   return (
@@ -6,37 +14,31 @@ function App() {
       <aside className="sidebar">
         <div className="menu-block">
           <div className="menu-title">Estudiantes</div>
-          <a className="menu-item" href="#">
-            Consultar
-          </a>
-          <a className="menu-item" href="#">
-            Crear
-          </a>
+          <Link className="menu-item" to="/estudiantes/consultar">Consultar</Link>
+          <Link className="menu-item" to="/estudiantes/crear">Crear</Link>
         </div>
 
         <div className="menu-block">
           <div className="menu-title">Instituciones</div>
-          <a className="menu-item" href="#">
-            Consultar
-          </a>
-          <a className="menu-item" href="#">
-            Añadir curso
-          </a>
-          <a className="menu-item" href="#">
-            Crear
-          </a>
+          <Link className="menu-item" to="/instituciones/consultar">Consultar</Link>
+          <Link className="menu-item" to="/instituciones/anadir-curso">Añadir curso</Link>
+          <Link className="menu-item" to="/instituciones/crear">Crear</Link>
         </div>
 
         <div className="menu-footer">
-          <a className="menu-item" href="#">
-            Info
-          </a>
+          <Link className="menu-item" to="/">Info</Link>
         </div>
       </aside>
 
       <main className="content">
-        <h1 className="page-title">Edu Grade Global</h1>
-        {/* Acá iría tu contenido */}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/estudiantes/consultar" element={<ConsultarEstudiantes />} />
+          <Route path="/estudiantes/crear" element={<CrearEstudiante />} />
+          <Route path="/instituciones/consultar" element={<ConsultarInstituciones />} />
+          <Route path="/instituciones/crear" element={<CrearInstitucion />} />
+          <Route path="/instituciones/anadir-curso" element={<AnadirCurso />} />
+        </Routes>
       </main>
     </div>
   );
