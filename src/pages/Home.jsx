@@ -1,3 +1,11 @@
 export default function Home() {
-  return <h1>Edu Grade Global</h1>
+  return (
+    <div>
+      <h1>EduGrade Global</h1>
+      <p>
+        Sistema Nacional de Calificaciones Multimodelo (UK / US / DE / AR). <n> </n>  
+        Utilice el menú para registrar calificaciones, convertirlas, ver trayectorias y reportes.
+      </p>
+    </div>
+  );
 }
