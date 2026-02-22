@@ -12,6 +12,7 @@ import CrearMateria from "./pages/materias/Crear";
 import AgregarCalificacion from "./pages/calificaciones/Agregar";
 import HistorialAcademico from "./pages/estudiantes/Historial";
 import DashboardReportes from "./pages/reportes/Dashboard";
+import EstudianteInstituciones from "./pages/estudiantes/Instituciones";
 
 function App() {
   return (
@@ -21,7 +22,6 @@ function App() {
           <div className="menu-title">Estudiantes</div>
           <Link className="menu-item" to="/estudiantes/consultar">Consultar</Link>
           <Link className="menu-item" to="/estudiantes/crear">Crear</Link>
-          <Link className="menu-item" to="/calificaciones/agregar">Agregar calificación</Link>
         </div>
 
         <div className="menu-block">
@@ -64,6 +64,8 @@ function App() {
           <Route path="/calificaciones/agregar" element={<AgregarCalificacion />} />
           <Route path="/estudiantes/:id/historial" element={<HistorialAcademico />} />
           <Route path="/reportes/dashboard" element={<DashboardReportes />} />
+          <Route path="/estudiantes/:id/calificaciones/agregar" element={<AgregarCalificacion />} />
+          <Route path="/estudiantes/:id/instituciones" element={<EstudianteInstituciones />} />
 
           <Route path="*" element={<Home />} />
         </Routes>
