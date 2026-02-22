@@ -1,53 +1,76 @@
+/* ===== Layout general ===== */
+
 .app {
   display: flex;
-  height: 100vh;
-  width: 100%;
+  min-height: 100vh;
+  background: #f3f4f6; /* fondo gris claro general */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
+
+/* ===== Sidebar ===== */
 
 .sidebar {
-  width: 260px;
-  flex-shrink: 0;
-  border-right: 1px solid #222;
-  padding: 16px;
-  background: #0b0b0b;
+  width: 250px;
+  background: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+  padding: 18px 14px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
+/* Bloques del menú (menos espacio) */
 .menu-block {
-  display: grid;
-  gap: 8px;
+  margin-bottom: 14px; /* antes era 24px */
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb; /* línea separadora clara */
 }
 
+/* Último bloque sin línea */
+.menu-block:last-of-type {
+  border-bottom: none;
+}
+
+/* Títulos más compactos */
 .menu-title {
-  font-weight: 800;
-  opacity: 0.9;
-  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
+/* Links */
 .menu-item {
   display: block;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #222;
-  background: #111;
-  color: inherit;
+  padding: 8px 10px; /* menos padding */
+  margin-bottom: 4px;
+  border-radius: 8px;
   text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+  transition: all 0.2s ease;
 }
 
+/* Hover */
 .menu-item:hover {
-  border-color: #444;
+  background: #e5e7eb;
 }
 
+/* Activo */
+.menu-item.active {
+  background: #2563eb;
+  color: white;
+}
+
+/* Footer separado con línea */
 .menu-footer {
   margin-top: auto;
-  display: grid;
-  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
 }
-
 .content {
   flex: 1;
-  padding: 22px;
-  overflow: auto;
+  padding: 40px;
 }

@@ -1,23 +1,15 @@
 import { useState } from "react";
 import { InstitutionsService } from "../../services/institutions.service";
 import { useNavigate } from "react-router-dom";
-
-function inputStyle() {
-  return {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #333",
-    background: "#111",
-    color: "inherit",
-  };
-}
+import "../../styles/instituciones.css";
 
 export default function CrearInstitucion() {
   const nav = useNavigate();
-  const [id, setId] = useState("I-");
-  const [nombre, setNombre] = useState("");
-  const [region, setRegion] = useState("");
+
+  const [name, setName] = useState("");
+  const [country, setCountry] = useState("ARG");
+  const [address, setAddress] = useState("");
+
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -25,36 +17,66 @@ export default function CrearInstitucion() {
     e.preventDefault();
     setError("");
 
-    if (!id.trim() || id.trim() === "I-") return setError("ID inválido (ej: I-3).");
-    if (!nombre.trim()) return setError("Nombre obligatorio.");
-    if (!region.trim()) return setError("Región obligatoria.");
+    if (!name.trim()) return setError("Nombre obligatorio.");
+    if (!country.trim()) return setError("País obligatorio (ej: ARG).");
+    if (!address.trim()) return setError("Dirección obligatoria.");
 
     try {
       setSaving(true);
-      await InstitutionsService.create({ id: id.trim(), nombre: nombre.trim(), region: region.trim() });
+
+      await InstitutionsService.create({
+        name: name.trim(),
+        country: country.trim(),
+        address: address.trim(),
+      });
+
       nav("/instituciones/consultar");
     } catch (err) {
-      setError(err.message || "No se pudo crear.");
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudo crear.";
+      setError(msg);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div>
-      <h1>Crear institución</h1>
-      {error && <p style={{ color: "tomato" }}>{error}</p>}
+    <div className="page">
+      <h1 className="pageTitle">Crear institución</h1>
 
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, maxWidth: 420 }}>
-        <label>ID<input style={inputStyle()} value={id} onChange={(e) => setId(e.target.value)} /></label>
-        <label>Nombre<input style={inputStyle()} value={nombre} onChange={(e) => setNombre(e.target.value)} /></label>
-        <label>Región<input style={inputStyle()} value={region} onChange={(e) => setRegion(e.target.value)} /></label>
+      {error && <p className="errorText">{error}</p>}
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button disabled={saving}>{saving ? "Guardando..." : "Guardar"}</button>
-          <button type="button" disabled={saving} onClick={() => nav("/instituciones/consultar")}>Cancelar</button>
-        </div>
-      </form>
+      <div className="card">
+        <form onSubmit={onSubmit} className="form">
+          <label className="label">
+            Nombre
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+
+          <label className="label">
+            País (ISO, ej: ARG)
+            <input className="input" value={country} onChange={(e) => setCountry(e.target.value)} />
+          </label>
+
+          <label className="label">
+            Dirección
+            <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} />
+          </label>
+
+          <div className="actions">
+            <button className="btn btnPrimary" disabled={saving}>
+              {saving ? "Guardando..." : "Guardar"}
+            </button>
+
+            <button className="btn" type="button" disabled={saving} onClick={() => nav("/instituciones/consultar")}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

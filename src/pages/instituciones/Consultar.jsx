@@ -1,57 +1,109 @@
 import { useEffect, useState } from "react";
 import { InstitutionsService } from "../../services/institutions.service";
 import { Link } from "react-router-dom";
+import "../../styles/instituciones.css";
 
 export default function ConsultarInstituciones() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function load() {
-    setLoading(true);
-    setItems(await InstitutionsService.list());
-    setLoading(false);
+    try {
+      setError("");
+      setLoading(true);
+
+      const res = await InstitutionsService.list({ limit: 100, skip: 0 });
+      const data = res.data;
+      const list = Array.isArray(data) ? data : data?.items ?? [];
+
+      setItems(list);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudieron cargar las instituciones.";
+      setError(msg);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function onDelete(id) {
     if (!confirm(`¿Eliminar institución ${id}?`)) return;
-    await InstitutionsService.remove(id);
-    await load();
+
+    try {
+      await InstitutionsService.remove(id);
+      await load();
+    } catch (err) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudo eliminar.";
+      alert(msg);
+    }
   }
 
   return (
-    <div>
-      <h1>Instituciones</h1>
-      <div style={{ marginBottom: 12 }}>
-        <Link to="/instituciones/crear">+ Crear institución</Link>
+    <div className="page">
+      <h1 className="pageTitle">Instituciones</h1>
+
+      <div className="topBar">
+        <Link className="linkPrimary" to="/instituciones/crear">
+          + Crear institución
+        </Link>
       </div>
 
-      {loading ? <p>Cargando...</p> : (
-        <table style={{ width: "100%", borderCollapse: "collapse", maxWidth: 900 }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "1px solid #333" }}>ID</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "1px solid #333" }}>Nombre</th>
-              <th style={{ textAlign: "left", padding: 8, borderBottom: "1px solid #333" }}>Región</th>
-              <th style={{ padding: 8, borderBottom: "1px solid #333" }} />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((i) => (
-              <tr key={i.id}>
-                <td style={{ padding: 8, borderBottom: "1px solid #222" }}>{i.id}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid #222" }}>{i.nombre}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid #222" }}>{i.region}</td>
-                <td style={{ padding: 8, borderBottom: "1px solid #222", textAlign: "right" }}>
-                  <button onClick={() => onDelete(i.id)}>Eliminar</button>
-                </td>
+      {error && <p className="errorText">{error}</p>}
+
+      <div className="card tableWrap">
+        {loading ? (
+          <p>Cargando...</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th className="th">ID</th>
+                <th className="th">Nombre</th>
+                <th className="th">País</th>
+                <th className="th">Dirección</th>
+                <th className="th" style={{ textAlign: "right" }} />
               </tr>
-            ))}
-            {items.length === 0 && <tr><td colSpan="4" style={{ padding: 8, opacity: 0.7 }}>Sin instituciones.</td></tr>}
-          </tbody>
-        </table>
-      )}
+            </thead>
+
+            <tbody>
+              {items.map((i) => (
+                <tr className="tr" key={i._id}>
+                  <td className="td">{i._id}</td>
+                  <td className="td">{i.name}</td>
+                  <td className="td">{i.country}</td>
+                  <td className="td">{i.address}</td>
+                  <td className="td" style={{ textAlign: "right" }}>
+                    <button className="btn btnDanger" onClick={() => onDelete(i._id)}>
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+
+              {items.length === 0 && (
+                <tr>
+                  <td className="td emptyRow" colSpan={5}>
+                    Sin instituciones.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
