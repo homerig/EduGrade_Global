@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StudentsService } from "../../services/students.service";
 import { useNavigate } from "react-router-dom";
 import "../../styles/ui.css";
-import { NATIONALITIES } from "../../constants/nationalities";
+import { COUNTRIES } from "../../constants/countries";
 
 export default function CrearEstudiante() {
   const nav = useNavigate();
@@ -10,7 +10,7 @@ export default function CrearEstudiante() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [nationality, setNationality] = useState("AR"); // guardamos ISO
+  const [nationality, setNationality] = useState("ZAF"); // ISO3 (ARG/DEU/USA/GBR/ZAF)
   const [identity, setIdentity] = useState("");
 
   const [error, setError] = useState("");
@@ -32,7 +32,7 @@ export default function CrearEstudiante() {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         birthDate: birthDate.trim(),
-        nationality: nationality.trim(), // ISO
+        nationality: nationality.trim(), // ISO3
         identity: identity.trim() || undefined,
       });
 
@@ -58,25 +58,42 @@ export default function CrearEstudiante() {
         <form onSubmit={onSubmit} className="form">
           <label className="label">
             First name
-            <input className="input" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            <input
+              className="input"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
           </label>
 
           <label className="label">
             Last name
-            <input className="input" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            <input
+              className="input"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
           </label>
 
           <label className="label">
             Birth date (YYYY-MM-DD)
-            <input className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+            <input
+              className="input"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              placeholder="YYYY-MM-DD"
+            />
           </label>
 
           <label className="label">
             Nationality
-            <select className="input" value={nationality} onChange={(e) => setNationality(e.target.value)}>
-              {NATIONALITIES.map((n) => (
-                <option key={n.code} value={n.code}>
-                  {n.code} — {n.label}
+            <select
+              className="input"
+              value={nationality}
+              onChange={(e) => setNationality(e.target.value)}
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.iso3} value={c.iso3}>
+                  {c.label}
                 </option>
               ))}
             </select>
@@ -84,14 +101,23 @@ export default function CrearEstudiante() {
 
           <label className="label">
             Identity (opcional)
-            <input className="input" value={identity} onChange={(e) => setIdentity(e.target.value)} />
+            <input
+              className="input"
+              value={identity}
+              onChange={(e) => setIdentity(e.target.value)}
+            />
           </label>
 
           <div className="actions">
             <button className="btn btnPrimary" disabled={saving}>
               {saving ? "Guardando..." : "Guardar"}
             </button>
-            <button className="btn" type="button" disabled={saving} onClick={() => nav("/estudiantes/consultar")}>
+            <button
+              className="btn"
+              type="button"
+              disabled={saving}
+              onClick={() => nav("/estudiantes/consultar")}
+            >
               Cancelar
             </button>
           </div>

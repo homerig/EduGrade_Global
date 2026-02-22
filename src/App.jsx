@@ -9,6 +9,9 @@ import ConsultarInstituciones from "./pages/instituciones/Consultar";
 import CrearInstitucion from "./pages/instituciones/Crear";
 import ConsultarMaterias from "./pages/materias/Consultar";
 import CrearMateria from "./pages/materias/Crear";
+import AgregarCalificacion from "./pages/calificaciones/Agregar";
+import HistorialAcademico from "./pages/estudiantes/Historial";
+import DashboardReportes from "./pages/reportes/Dashboard";
 
 function App() {
   return (
@@ -18,6 +21,7 @@ function App() {
           <div className="menu-title">Estudiantes</div>
           <Link className="menu-item" to="/estudiantes/consultar">Consultar</Link>
           <Link className="menu-item" to="/estudiantes/crear">Crear</Link>
+          <Link className="menu-item" to="/calificaciones/agregar">Agregar calificación</Link>
         </div>
 
         <div className="menu-block">
@@ -30,6 +34,11 @@ function App() {
           <div className="menu-title">Materias</div>
           <Link className="menu-item" to="/materias/consultar">Consultar</Link>
           <Link className="menu-item" to="/materias/crear">Crear</Link>
+        </div>
+
+        <div className="menu-block">
+          <div className="menu-title">Reportes</div>
+          <Link className="menu-item" to="/reportes/dashboard">Dashboard académico</Link>
         </div>
 
         <div className="menu-block">
@@ -52,6 +61,9 @@ function App() {
           <Route path="/instituciones/crear" element={<CrearInstitucion />} />
           <Route path="/materias/consultar" element={<ConsultarMaterias />} />
           <Route path="/materias/crear" element={<CrearMateria />} />
+          <Route path="/calificaciones/agregar" element={<AgregarCalificacion />} />
+          <Route path="/estudiantes/:id/historial" element={<HistorialAcademico />} />
+          <Route path="/reportes/dashboard" element={<DashboardReportes />} />
 
           <Route path="*" element={<Home />} />
         </Routes>

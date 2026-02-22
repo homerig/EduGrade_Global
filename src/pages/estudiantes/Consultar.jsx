@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { StudentsService } from "../../services/students.service";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "../../styles/ui.css";
 
 export default function ConsultarEstudiantes() {
+  const navigate = useNavigate();
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -47,6 +49,7 @@ export default function ConsultarEstudiantes() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onDelete(id) {
@@ -87,28 +90,46 @@ export default function ConsultarEstudiantes() {
         >
           <label className="label">
             First name
-            <input className="input" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            <input
+              className="input"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
           </label>
 
           <label className="label">
             Last name (like)
-            <input className="input" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            <input
+              className="input"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
           </label>
 
           <label className="label">
             Nationality
-            <input className="input" value={nationality} onChange={(e) => setNationality(e.target.value)} />
+            <input
+              className="input"
+              value={nationality}
+              onChange={(e) => setNationality(e.target.value)}
+              placeholder="Ej: ARG"
+            />
           </label>
 
           <label className="label">
             Identity (requiere nationality)
-            <input className="input" value={identity} onChange={(e) => setIdentity(e.target.value)} />
+            <input
+              className="input"
+              value={identity}
+              onChange={(e) => setIdentity(e.target.value)}
+            />
           </label>
 
           <div className="actions">
             <button className="btn btnPrimary" disabled={loading}>
               {loading ? "Buscando..." : "Buscar"}
             </button>
+
             <button
               className="btn"
               type="button"
@@ -150,14 +171,30 @@ export default function ConsultarEstudiantes() {
 
             <tbody>
               {items.map((s) => (
-                <tr className="tr" key={s._id}>
+                <tr
+                  className="tr clickableRow"
+                  key={s._id}
+                  onClick={() =>
+                    navigate(`/estudiantes/${s._id}/historial`, {
+                      state: { student: { firstName: s.firstName, lastName: s.lastName } },
+                    })
+                  }
+                  title="Ver historial académico"
+                >
                   <td className="td">{s._id}</td>
                   <td className="td">{s.firstName ?? "-"}</td>
                   <td className="td">{s.lastName ?? "-"}</td>
                   <td className="td">{s.nationality ?? "-"}</td>
                   <td className="td">{s.birthDate ?? "-"}</td>
+
                   <td className="td" style={{ textAlign: "right" }}>
-                    <button className="btn btnDanger" onClick={() => onDelete(s._id)}>
+                    <button
+                      className="btn btnDanger"
+                      onClick={(e) => {
+                        e.stopPropagation(); // ✅ evita navegar
+                        onDelete(s._id);
+                      }}
+                    >
                       Eliminar
                     </button>
                   </td>
