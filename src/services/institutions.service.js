@@ -21,5 +21,6 @@ export const InstitutionsService = {
       address: data.address,
     }),
 
-  
+  // ✅ NUEVO
+  listByStudent: (studentId) => http.get(`/api/institutions/by-student/${studentId}`),
 };

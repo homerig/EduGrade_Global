@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import "../../styles/ui.css";
 import { COUNTRIES } from "../../constants/countries";
 
@@ -57,6 +57,7 @@ async function fetchTranscriptMock(studentId, countryIso3) {
 export default function HistorialAcademico() {
   const { id } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // ✅ Si venís desde la tabla, recibís nombre y apellido por state
   const studentFromState = location.state?.student;
@@ -73,7 +74,7 @@ export default function HistorialAcademico() {
   const [timeline, setTimeline] = useState([]);
 
   // ✅ Estado de expansión por materia
-  const [openKey, setOpenKey] = useState(null); // solo 1 abierta. Si querés múltiples, lo hacemos con Set.
+  const [openKey, setOpenKey] = useState(null);
 
   const countryMeta = useMemo(() => {
     return COUNTRIES.find((x) => x.iso3 === country) ?? null;
@@ -123,27 +124,51 @@ export default function HistorialAcademico() {
         </div>
 
         {/* selector arriba derecha */}
-        <div className="countryPill">
-          <div className="countryLeft">
-            {countryMeta?.flag && (
-              <img className="countryFlag" src={countryMeta.flag} alt={countryMeta.label} />
-            )}
-            {/* Si preferís no repetir el texto, podés dejar solo la bandera */}
-            {/* <span className="code">{countryMeta?.label ?? country}</span> */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
+          <div className="countryPill">
+            <div className="countryLeft">
+              {countryMeta?.flag && (
+                <img className="countryFlag" src={countryMeta.flag} alt={countryMeta.label} />
+              )}
+            </div>
+
+            <select
+              className="countrySelect"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              aria-label="Seleccionar país"
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.iso3} value={c.iso3}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <select
-            className="countrySelect"
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            aria-label="Seleccionar país"
+          {/* ✅ NUEVO: container debajo del botón/bandera */}
+          <button
+            type="button"
+            className="card addNoteCard"
+            onClick={() => navigate(`/estudiantes/${id}/notas/agregar`, { state: { student: studentFromState } })}
+            title="Agregar nota"
+            style={{
+              cursor: "pointer",
+              padding: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              width: 240,
+            }}
           >
-            {COUNTRIES.map((c) => (
-              <option key={c.iso3} value={c.iso3}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+            <span style={{ fontSize: 18 }}>➕</span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontWeight: 700 }}>Agregar nota</div>
+              <div className="mutedText" style={{ marginTop: 2 }}>
+                Cargar evaluaciones
+              </div>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -174,7 +199,6 @@ export default function HistorialAcademico() {
                     return (
                       <div key={key}>
                         <div className="subjectRow">
-                          {/* ✅ Columna materia + flecha clickeable */}
                           <button
                             type="button"
                             className="subjectToggle"
@@ -194,7 +218,6 @@ export default function HistorialAcademico() {
                             <span className="finalValue">{row.finalGrade}</span>
                           </div>
 
-                          {/* columna vacía para mantener grid prolijo (antes era chevron) */}
                           <div />
                         </div>
 

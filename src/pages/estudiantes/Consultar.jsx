@@ -22,8 +22,8 @@ export default function ConsultarEstudiantes() {
       setLoading(true);
 
       const res = await StudentsService.list({
-        first_name: firstName || undefined,
-        last_name: lastName || undefined,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
         nationality: nationality || undefined,
         identity: identity || undefined,
         limit: 100,
@@ -52,22 +52,6 @@ export default function ConsultarEstudiantes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function onDelete(id) {
-    if (!confirm(`¿Eliminar estudiante ${id}?`)) return;
-
-    try {
-      await StudentsService.remove(id);
-      await load();
-    } catch (err) {
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "No se pudo eliminar.";
-      alert(msg);
-    }
-  }
-
   return (
     <div className="page">
       <h1 className="pageTitle">Estudiantes</h1>
@@ -90,20 +74,12 @@ export default function ConsultarEstudiantes() {
         >
           <label className="label">
             First name
-            <input
-              className="input"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-            />
+            <input className="input" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
           </label>
 
           <label className="label">
             Last name (like)
-            <input
-              className="input"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-            />
+            <input className="input" value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </label>
 
           <label className="label">
@@ -118,11 +94,7 @@ export default function ConsultarEstudiantes() {
 
           <label className="label">
             Identity (requiere nationality)
-            <input
-              className="input"
-              value={identity}
-              onChange={(e) => setIdentity(e.target.value)}
-            />
+            <input className="input" value={identity} onChange={(e) => setIdentity(e.target.value)} />
           </label>
 
           <div className="actions">
@@ -140,8 +112,8 @@ export default function ConsultarEstudiantes() {
                 setNationality("");
                 setIdentity("");
                 load({
-                  first_name: undefined,
-                  last_name: undefined,
+                  firstName: undefined,
+                  lastName: undefined,
                   nationality: undefined,
                   identity: undefined,
                 });
@@ -160,12 +132,13 @@ export default function ConsultarEstudiantes() {
           <table className="table">
             <thead>
               <tr>
-                <th className="th">_id</th>
                 <th className="th">First name</th>
                 <th className="th">Last name</th>
                 <th className="th">Nationality</th>
                 <th className="th">Birth date</th>
-                <th className="th" style={{ textAlign: "right" }} />
+                <th className="th" style={{ textAlign: "right" }}>
+                  Acciones
+                </th>
               </tr>
             </thead>
 
@@ -176,7 +149,7 @@ export default function ConsultarEstudiantes() {
                   key={s._id}
                   onClick={() => {
                     const selectedText = window.getSelection()?.toString();
-                    if (selectedText) return; // si estás seleccionando texto, NO navegar
+                    if (selectedText) return;
 
                     navigate(`/estudiantes/${s._id}/historial`, {
                       state: { student: { firstName: s.firstName, lastName: s.lastName } },
@@ -184,29 +157,45 @@ export default function ConsultarEstudiantes() {
                   }}
                   title="Ver historial académico"
                 >
-                  <td className="td">{s._id}</td>
                   <td className="td">{s.firstName ?? "-"}</td>
                   <td className="td">{s.lastName ?? "-"}</td>
                   <td className="td">{s.nationality ?? "-"}</td>
                   <td className="td">{s.birthDate ?? "-"}</td>
 
                   <td className="td" style={{ textAlign: "right" }}>
-                    <button
-                      className="btn btnDanger"
-                      onClick={(e) => {
-                        e.stopPropagation(); // ✅ evita navegar
-                        onDelete(s._id);
-                      }}
-                    >
-                      Eliminar
-                    </button>
+                    <div style={{ display: "inline-flex", gap: 8 }}>
+                      <button
+                        className="btn btnPrimary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // ruta de tu screen de agregar nota (la que ya armamos)
+                          navigate(`/estudiantes/${s._id}/calificaciones/agregar`, {
+                            state: { student: { firstName: s.firstName, lastName: s.lastName } },
+                          });
+                        }}
+                      >
+                        Agregar nota
+                      </button>
+
+                      <button
+                        className="btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/estudiantes/${s._id}/instituciones`, {
+                            state: { student: { firstName: s.firstName, lastName: s.lastName } },
+                          });
+                        }}
+                      >
+                        Instituciones
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
 
               {items.length === 0 && (
                 <tr>
-                  <td className="td emptyRow" colSpan={6}>
+                  <td className="td emptyRow" colSpan={5}>
                     Sin estudiantes.
                   </td>
                 </tr>
