@@ -1,7 +1,6 @@
 import http from "./http";
 
 export const InstitutionsService = {
-  // GET /api/institutions?name=&country=&address=&limit=&skip=
   list: (params = {}) =>
     http.get("/api/institutions", {
       params: {
@@ -13,11 +12,8 @@ export const InstitutionsService = {
       },
     }),
 
-  // GET /api/institutions/:id
   getById: (id) => http.get(`/api/institutions/${id}`),
 
-  // POST /api/institutions
-  // body: { name, country, address }
   create: (data) =>
     http.post("/api/institutions", {
       name: data.name,
@@ -25,6 +21,5 @@ export const InstitutionsService = {
       address: data.address,
     }),
 
-  // DELETE /api/institutions/:id
-  remove: (id) => http.delete(`/api/institutions/${id}`),
+  
 };

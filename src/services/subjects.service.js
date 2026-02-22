@@ -1,8 +1,14 @@
 import http from "./http";
 
 export const SubjectsService = {
-  list: (params = {}) => http.get("/api/subjects", { params }),
-  getById: (id) => http.get(`/api/subjects/${id}`),
-  create: (data) => http.post("/api/subjects", data),
-  remove: (id) => http.delete(`/api/subjects/${id}`),
+  // GET /api/institutions/{institutionMongoId}/subjects
+  listByInstitution: (institutionMongoId) =>
+    http.get(`/api/institutions/${institutionMongoId}/subjects`),
+
+  // POST /api/institutions/{institution_id}/subjects
+  // body esperado por tu endpoint: { name }
+  createForInstitution: (institutionMongoId, data) =>
+    http.post(`/api/institutions/${institutionMongoId}/subjects`, {
+      name: data.name,
+    }),
 };
