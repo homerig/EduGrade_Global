@@ -1,3 +1,7 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 .page {
   max-width: 980px;
 }
@@ -94,6 +98,16 @@
   outline: none;
 }
 
+select.input {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 36px;   /* espacio para flecha */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%236b7280' d='M5.5 7.5L10 12l4.5-4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 18px;
+}
+
 .input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
@@ -140,4 +154,20 @@
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;   /* scroll horizontal */
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  word-break: break-all; /* ids largos */
+}
+
+/* opcional: que la tabla no se “apriete” demasiado */
+.table {
+  min-width: 980px;
 }

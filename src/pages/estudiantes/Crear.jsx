@@ -2,15 +2,16 @@ import { useState } from "react";
 import { StudentsService } from "../../services/students.service";
 import { useNavigate } from "react-router-dom";
 import "../../styles/ui.css";
+import { NATIONALITIES } from "../../constants/nationalities";
 
 export default function CrearEstudiante() {
   const nav = useNavigate();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [birthDate, setBirthDate] = useState(""); // YYYY-MM-DD
-  const [nationality, setNationality] = useState("Argentina");
-  const [identity, setIdentity] = useState(""); // opcional
+  const [birthDate, setBirthDate] = useState("");
+  const [nationality, setNationality] = useState("AR"); // guardamos ISO
+  const [identity, setIdentity] = useState("");
 
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -22,7 +23,7 @@ export default function CrearEstudiante() {
     if (!firstName.trim()) return setError("First name obligatorio.");
     if (!lastName.trim()) return setError("Last name obligatorio.");
     if (!birthDate.trim()) return setError("Birth date obligatorio (YYYY-MM-DD).");
-    if (!nationality.trim()) return setError("Nationality obligatorio.");
+    if (!nationality.trim()) return setError("Nationality obligatoria.");
 
     try {
       setSaving(true);
@@ -31,7 +32,7 @@ export default function CrearEstudiante() {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         birthDate: birthDate.trim(),
-        nationality: nationality.trim(),
+        nationality: nationality.trim(), // ISO
         identity: identity.trim() || undefined,
       });
 
@@ -72,7 +73,13 @@ export default function CrearEstudiante() {
 
           <label className="label">
             Nationality
-            <input className="input" value={nationality} onChange={(e) => setNationality(e.target.value)} />
+            <select className="input" value={nationality} onChange={(e) => setNationality(e.target.value)}>
+              {NATIONALITIES.map((n) => (
+                <option key={n.code} value={n.code}>
+                  {n.code} — {n.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="label">

@@ -1,49 +1,90 @@
 import { useState } from "react";
-import { SubjectsService } from "../../services/subjects.service";
 import { useNavigate } from "react-router-dom";
-
-function inputStyle() {
-  return {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #333",
-    background: "#111",
-    color: "inherit",
-  };
-}
+import "../../styles/ui.css";
+import { SubjectsService } from "../../services/subjects.service";
+import { LEVELS } from "../../constants/levels";
 
 export default function CrearMateria() {
   const nav = useNavigate();
-  const [id, setId] = useState("");
-  const [nombre, setNombre] = useState("");
+
+  const [name, setName] = useState("");
+  const [level, setLevel] = useState("19"); // default undergraduate
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
 
-    if (!id.trim()) return setError("ID obligatorio (ej: PHY-01).");
-    if (!nombre.trim()) return setError("Nombre obligatorio.");
+    if (!name.trim()) return setError("Nombre obligatorio.");
+    if (!level.trim()) return setError("Level obligatorio.");
 
-    await SubjectsService.create({ id: id.trim(), nombre: nombre.trim() });
-    nav("/materias/consultar");
+    try {
+      setSaving(true);
+
+      await SubjectsService.create({
+        name: name.trim(),
+        level: level, // string id del catálogo
+      });
+
+      nav("/materias/consultar");
+    } catch (err) {
+      setError(
+        err?.response?.data?.detail ||
+        err?.message ||
+        "No se pudo crear la materia."
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <div>
-      <h1>Crear materia</h1>
-      {error && <p style={{ color: "tomato" }}>{error}</p>}
+    <div className="page">
+      <h1 className="pageTitle">Crear materia</h1>
+      {error && <p className="errorText">{error}</p>}
 
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, maxWidth: 420 }}>
-        <label>ID<input style={inputStyle()} value={id} onChange={(e) => setId(e.target.value)} /></label>
-        <label>Nombre<input style={inputStyle()} value={nombre} onChange={(e) => setNombre(e.target.value)} /></label>
+      <div className="card">
+        <form onSubmit={onSubmit} className="form">
+          <label className="label">
+            Nombre
+            <input
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button>Guardar</button>
-          <button type="button" onClick={() => nav("/materias/consultar")}>Cancelar</button>
-        </div>
-      </form>
+          <label className="label">
+            Nivel académico
+            <select
+              className="input"
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+            >
+              {LEVELS.map((lvl) => (
+                <option key={lvl.value} value={lvl.value}>
+                  {lvl.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="actions">
+            <button className="btn btnPrimary" disabled={saving}>
+              {saving ? "Guardando..." : "Guardar"}
+            </button>
+            <button
+              className="btn"
+              type="button"
+              disabled={saving}
+              onClick={() => nav("/materias/consultar")}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

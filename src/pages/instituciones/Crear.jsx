@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { InstitutionsService } from "../../services/institutions.service";
 import { useNavigate } from "react-router-dom";
-import "../../styles/instituciones.css";
+import "../../styles/ui.css";
+import { COUNTRIES } from "../../constants/countries";
 
 export default function CrearInstitucion() {
   const nav = useNavigate();
 
   const [name, setName] = useState("");
-  const [country, setCountry] = useState("ARG");
+  const [country, setCountry] = useState("ARG"); // ISO3
   const [address, setAddress] = useState("");
 
   const [error, setError] = useState("");
@@ -18,7 +19,7 @@ export default function CrearInstitucion() {
     setError("");
 
     if (!name.trim()) return setError("Nombre obligatorio.");
-    if (!country.trim()) return setError("País obligatorio (ej: ARG).");
+    if (!country.trim()) return setError("País obligatorio (ISO).");
     if (!address.trim()) return setError("Dirección obligatoria.");
 
     try {
@@ -26,7 +27,7 @@ export default function CrearInstitucion() {
 
       await InstitutionsService.create({
         name: name.trim(),
-        country: country.trim(),
+        country: country.trim(), // ISO3
         address: address.trim(),
       });
 
@@ -46,7 +47,6 @@ export default function CrearInstitucion() {
   return (
     <div className="page">
       <h1 className="pageTitle">Crear institución</h1>
-
       {error && <p className="errorText">{error}</p>}
 
       <div className="card">
@@ -57,8 +57,14 @@ export default function CrearInstitucion() {
           </label>
 
           <label className="label">
-            País (ISO, ej: ARG)
-            <input className="input" value={country} onChange={(e) => setCountry(e.target.value)} />
+            País (ISO)
+            <select className="input" value={country} onChange={(e) => setCountry(e.target.value)}>
+              {COUNTRIES.map((c) => (
+                <option key={c.iso3} value={c.iso3}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="label">
@@ -70,7 +76,6 @@ export default function CrearInstitucion() {
             <button className="btn btnPrimary" disabled={saving}>
               {saving ? "Guardando..." : "Guardar"}
             </button>
-
             <button className="btn" type="button" disabled={saving} onClick={() => nav("/instituciones/consultar")}>
               Cancelar
             </button>
