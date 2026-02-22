@@ -35,22 +35,6 @@ export default function ConsultarInstituciones() {
     load();
   }, []);
 
-  async function onDelete(id) {
-    if (!confirm(`¿Eliminar institución ${id}?`)) return;
-
-    try {
-      await InstitutionsService.remove(id);
-      await load();
-    } catch (err) {
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "No se pudo eliminar.";
-      alert(msg);
-    }
-  }
-
   return (
     <div className="page">
       <h1 className="pageTitle">Instituciones</h1>
@@ -85,11 +69,6 @@ export default function ConsultarInstituciones() {
                   <td className="td">{i.name}</td>
                   <td className="td">{i.country}</td>
                   <td className="td">{i.address}</td>
-                  <td className="td" style={{ textAlign: "right" }}>
-                    <button className="btn btnDanger" onClick={() => onDelete(i._id)}>
-                      Eliminar
-                    </button>
-                  </td>
                 </tr>
               ))}
 

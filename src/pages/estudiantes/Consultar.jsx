@@ -174,11 +174,14 @@ export default function ConsultarEstudiantes() {
                 <tr
                   className="tr clickableRow"
                   key={s._id}
-                  onClick={() =>
+                  onClick={() => {
+                    const selectedText = window.getSelection()?.toString();
+                    if (selectedText) return; // si estás seleccionando texto, NO navegar
+
                     navigate(`/estudiantes/${s._id}/historial`, {
                       state: { student: { firstName: s.firstName, lastName: s.lastName } },
-                    })
-                  }
+                    });
+                  }}
                   title="Ver historial académico"
                 >
                   <td className="td">{s._id}</td>
