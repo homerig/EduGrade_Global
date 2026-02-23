@@ -1,38 +1,83 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/ui.css";
+
 import { SubjectsService } from "../../services/subjects.service";
-import { LEVELS } from "../../constants/levels";
+import { InstitutionsService } from "../../services/institutions.service";
 
 export default function CrearMateria() {
   const nav = useNavigate();
 
   const [name, setName] = useState("");
-  const [level, setLevel] = useState("19"); // default undergraduate
+  const [institutionMongoId, setInstitutionMongoId] = useState("");
+
+  const [institutions, setInstitutions] = useState([]);
+  const [loadingInst, setLoadingInst] = useState(true);
+
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        setLoadingInst(true);
+
+        // OJO: InstitutionsService.list devuelve una Promise de axios -> {data,...}
+        const res = await InstitutionsService.list({ limit: 200, skip: 0 });
+        const data = res.data;
+
+        // dependiendo tu backend, puede venir:
+        // A) data = array
+        // B) data.items = array
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+
+        if (!mounted) return;
+
+        setInstitutions(list);
+
+        // autoselecciona la primera si hay
+        if (list.length > 0) {
+          setInstitutionMongoId(list[0]._id); // si tu backend usa "id", cambiá a list[0].id
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setError(
+          e?.response?.data?.detail ||
+            e?.message ||
+            "No se pudieron cargar instituciones."
+        );
+      } finally {
+        if (mounted) setLoadingInst(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
 
     if (!name.trim()) return setError("Nombre obligatorio.");
-    if (!level.trim()) return setError("Level obligatorio.");
+    if (!institutionMongoId) return setError("Institución obligatoria.");
 
     try {
       setSaving(true);
 
-      await SubjectsService.create({
+      await SubjectsService.createForInstitution(institutionMongoId, {
         name: name.trim(),
-        level: level, // string id del catálogo
       });
 
       nav("/materias/consultar");
     } catch (err) {
       setError(
         err?.response?.data?.detail ||
-        err?.message ||
-        "No se pudo crear la materia."
+          err?.message ||
+          "No se pudo crear la materia."
       );
     } finally {
       setSaving(false);
@@ -56,22 +101,29 @@ export default function CrearMateria() {
           </label>
 
           <label className="label">
-            Nivel académico
+            Institución
             <select
               className="input"
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
+              value={institutionMongoId}
+              onChange={(e) => setInstitutionMongoId(e.target.value)}
+              disabled={loadingInst || institutions.length === 0}
             >
-              {LEVELS.map((lvl) => (
-                <option key={lvl.value} value={lvl.value}>
-                  {lvl.label}
+              {institutions.length === 0 ? (
+                <option value="">
+                  {loadingInst ? "Cargando..." : "No hay instituciones"}
                 </option>
-              ))}
+              ) : (
+                institutions.map((inst) => (
+                  <option key={inst._id} value={inst._id}>
+                    {inst.name}
+                  </option>
+                ))
+              )}
             </select>
           </label>
 
           <div className="actions">
-            <button className="btn btnPrimary" disabled={saving}>
+            <button className="btn btnPrimary" disabled={saving || loadingInst}>
               {saving ? "Guardando..." : "Guardar"}
             </button>
             <button
