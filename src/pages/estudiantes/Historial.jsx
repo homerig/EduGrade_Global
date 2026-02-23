@@ -1,57 +1,17 @@
+// src/pages/estudiantes/Historial.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import "../../styles/ui.css";
 import { COUNTRIES } from "../../constants/countries";
+import { HistoryService } from "../../services/history.service";
+import { ExamsService } from "../../services/exams.service";
 
-// ✅ mock con datos extra (parciales, nivel, cierre)
-async function fetchTranscriptMock(studentId, countryIso3) {
-  const bonus = countryIso3 === "USA" ? 1 : 0;
-
-  return [
-    {
-      year: 2024,
-      items: [
-        {
-          subjectId: "MAT-2024",
-          subject: "MATEMÁTICA",
-          institution: "UADE",
-          finalGrade: String(8 + bonus),
-          level: "Undergraduate",
-          closedAt: "2024-12-10",
-          partials: [
-            { name: "Parcial 1", grade: "7", date: "2024-05-10" },
-            { name: "Parcial 2", grade: "8", date: "2024-09-02" },
-          ],
-        },
-        {
-          subjectId: "LEN-2024",
-          subject: "LENGUA",
-          institution: "UBA",
-          finalGrade: "5",
-          level: "Undergraduate",
-          closedAt: "2024-11-25",
-          partials: [
-            { name: "Parcial 1", grade: "4", date: "2024-06-12" },
-            { name: "Parcial 2", grade: "6", date: "2024-10-01" },
-          ],
-        },
-      ],
-    },
-    {
-      year: 2023,
-      items: [
-        {
-          subjectId: "FIS-2023",
-          subject: "FÍSICA",
-          institution: "UADE",
-          finalGrade: "7",
-          level: "Undergraduate",
-          closedAt: "2023-12-05",
-          partials: [{ name: "Parcial 1", grade: "6", date: "2023-06-08" }],
-        },
-      ],
-    },
-  ];
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export default function HistorialAcademico() {
@@ -68,49 +28,140 @@ export default function HistorialAcademico() {
     return full || null;
   }, [studentFromState]);
 
-  const [country, setCountry] = useState("ZAF");
+  // ✅ selector: ORIGINAL + países (ISO3)
+  const [system, setSystem] = useState("ORIGINAL"); // "ORIGINAL" | iso3
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [timeline, setTimeline] = useState([]);
+  const [history, setHistory] = useState(null); // { years: [...] }
 
-  // ✅ Estado de expansión por materia
+  // ✅ expansión por materia
   const [openKey, setOpenKey] = useState(null);
 
-  const countryMeta = useMemo(() => {
-    return COUNTRIES.find((x) => x.iso3 === country) ?? null;
-  }, [country]);
+  // ✅ cache de exams por materia+system
+  const [examsByKey, setExamsByKey] = useState({}); // key -> { loading, error, data }
 
+  // Meta del país seleccionado (flag/label)
+  const selectedCountryMeta = useMemo(() => {
+    if (system === "ORIGINAL") return null;
+    return COUNTRIES.find((x) => x.iso3 === system) ?? null;
+  }, [system]);
+
+  // ✅ targetSystem REAL (ISO3). Original => null (no se manda)
+  const targetSystem = useMemo(() => {
+    if (system === "ORIGINAL") return null;
+    return system; // <-- ISO3 directo
+  }, [system]);
+
+  // 1) Cargar history real (servicio)
   useEffect(() => {
     let alive = true;
 
-    async function load() {
+    (async () => {
       try {
         setError("");
         setLoading(true);
 
-        const data = await fetchTranscriptMock(id, country);
+        console.log("[HISTORY] load studentId:", id);
+        const res = await HistoryService.get(id);
+        console.log("[HISTORY] response:", res?.data);
 
         if (!alive) return;
-        setTimeline(Array.isArray(data) ? data : []);
+        setHistory(res?.data ?? null);
       } catch (err) {
         if (!alive) return;
+
+        console.log("[HISTORY] error:", err);
+
         const msg =
           err?.response?.data?.detail ||
           err?.response?.data?.message ||
           err?.message ||
           "No se pudo cargar el historial.";
+
         setError(msg);
-        setTimeline([]);
+        setHistory(null);
       } finally {
         if (alive) setLoading(false);
       }
-    }
+    })();
 
-    load();
     return () => {
       alive = false;
     };
-  }, [id, country]);
+  }, [id]);
+
+  // 2) Cambio de sistema => limpiar cache + cerrar materia
+  useEffect(() => {
+    setExamsByKey({});
+    setOpenKey(null);
+  }, [system]);
+
+  // Normalizar years
+  const years = useMemo(() => {
+    const arr = history?.years;
+    return Array.isArray(arr) ? arr.slice().sort((a, b) => (b.year ?? 0) - (a.year ?? 0)) : [];
+  }, [history]);
+
+  // 3) Abrir materia => pedir exams si no está cacheado
+  async function onToggleSubject({ key, subject, institutionId }) {
+    const isOpen = openKey === key;
+    if (isOpen) {
+      setOpenKey(null);
+      return;
+    }
+
+    setOpenKey(key);
+
+    if (examsByKey[key]?.data || examsByKey[key]?.loading) return;
+
+    const fromDate = subject.fromDate;
+    const toDate = subject.toDate ?? todayISO();
+
+    setExamsByKey((prev) => ({
+      ...prev,
+      [key]: { loading: true, error: "", data: null },
+    }));
+
+    try {
+      const params = {
+        studentId: id,
+        subjectId: subject.subjectId,
+        institutionId,
+        fromDate,
+        toDate,
+        ...(targetSystem ? { targetSystem } : {}), // ✅ ISO3 o nada
+      };
+
+      console.log("[EXAMS] request params:", params);
+
+      const res = await ExamsService.list(params);
+      const data = res?.data;
+
+      console.log("[EXAMS] response:", data);
+
+      setExamsByKey((prev) => ({
+        ...prev,
+        [key]: {
+          loading: false,
+          error: "",
+          data: Array.isArray(data) ? data : [],
+        },
+      }));
+    } catch (err) {
+      console.log("[EXAMS] error:", err);
+
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Error al cargar exámenes.";
+
+      setExamsByKey((prev) => ({
+        ...prev,
+        [key]: { loading: false, error: msg, data: [] },
+      }));
+    }
+  }
 
   return (
     <div className="page">
@@ -123,21 +174,22 @@ export default function HistorialAcademico() {
           </div>
         </div>
 
-        {/* selector arriba derecha */}
+        {/* selector arriba derecha: ORIGINAL + países (ISO3) */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
           <div className="countryPill">
             <div className="countryLeft">
-              {countryMeta?.flag && (
-                <img className="countryFlag" src={countryMeta.flag} alt={countryMeta.label} />
+              {selectedCountryMeta?.flag && (
+                <img className="countryFlag" src={selectedCountryMeta.flag} alt={selectedCountryMeta.label} />
               )}
             </div>
 
             <select
               className="countrySelect"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              aria-label="Seleccionar país"
+              value={system}
+              onChange={(e) => setSystem(e.target.value)}
+              aria-label="Seleccionar sistema de notas"
             >
+              <option value="ORIGINAL">Original (sin conversión)</option>
               {COUNTRIES.map((c) => (
                 <option key={c.iso3} value={c.iso3}>
                   {c.label}
@@ -145,30 +197,6 @@ export default function HistorialAcademico() {
               ))}
             </select>
           </div>
-
-          {/* ✅ NUEVO: container debajo del botón/bandera */}
-          <button
-            type="button"
-            className="card addNoteCard"
-            onClick={() => navigate(`/estudiantes/${id}/notas/agregar`, { state: { student: studentFromState } })}
-            title="Agregar nota"
-            style={{
-              cursor: "pointer",
-              padding: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              width: 240,
-            }}
-          >
-            <span style={{ fontSize: 18 }}>➕</span>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontWeight: 700 }}>Agregar nota</div>
-              <div className="mutedText" style={{ marginTop: 2 }}>
-                Cargar evaluaciones
-              </div>
-            </div>
-          </button>
         </div>
       </div>
 
@@ -178,97 +206,125 @@ export default function HistorialAcademico() {
         <div className="card">
           <p>Cargando...</p>
         </div>
-      ) : timeline.length === 0 ? (
+      ) : years.length === 0 ? (
         <div className="card">
           <p>Sin historial académico cargado.</p>
         </div>
       ) : (
         <div className="academicBoard">
-          {timeline
-            .slice()
-            .sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
-            .map((block) => (
-              <div key={block.year} className="yearSection">
-                <div className="yearBox">{block.year}</div>
+          {years.map((y) => (
+            <div key={y.year} className="yearSection">
+              <div className="yearBox">{y.year}</div>
 
-                <div className="yearRight">
-                  {(block.items ?? []).map((row, idx) => {
-                    const key = row.subjectId ?? `${block.year}-${idx}`;
-                    const isOpen = openKey === key;
+              <div className="yearRight">
+                {(y.institutions ?? []).map((inst) => (
+                  <div key={inst.institutionId} style={{ marginBottom: 14 }}>
+                    <div className="institutionName" style={{ marginBottom: 8 }}>
+                      {inst.name}
+                    </div>
 
-                    return (
-                      <div key={key}>
-                        <div className="subjectRow">
-                          <button
-                            type="button"
-                            className="subjectToggle"
-                            onClick={() => setOpenKey(isOpen ? null : key)}
-                            title={isOpen ? "Ocultar detalles" : "Ver detalles"}
-                          >
-                            <span className="subjectName">{row.subject}</span>
-                            <span className="rowChevron" aria-hidden="true">
-                              {isOpen ? "▴" : "▾"}
-                            </span>
-                          </button>
+                    {(inst.subjects ?? []).length === 0 ? (
+                      <div className="mutedText">Sin materias en este año.</div>
+                    ) : (
+                      (inst.subjects ?? []).map((subj) => {
+                        // ✅ key única (incluye sistema + fechas para cache)
+                        const fromDate = subj.fromDate;
+                        const toDateKey = subj.toDate ?? "OPEN";
+                        const key = `${y.year}|${inst.institutionId}|${subj.subjectId}|${fromDate}|${toDateKey}|${system}`;
+                        const isOpen = openKey === key;
+                        const examsState = examsByKey[key];
 
-                          <div className="institutionName">{row.institution}</div>
+                        return (
+                          <div key={key}>
+                            <div className="subjectRow">
+                              <button
+                                type="button"
+                                className="subjectToggle"
+                                onClick={() =>
+                                  onToggleSubject({
+                                    key,
+                                    subject: subj,
+                                    institutionId: inst.institutionId,
+                                  })
+                                }
+                                title={isOpen ? "Ocultar detalles" : "Ver detalles"}
+                              >
+                                <span className="subjectName">{subj.name}</span>
+                                <span className="rowChevron" aria-hidden="true">
+                                  {isOpen ? "▴" : "▾"}
+                                </span>
+                              </button>
 
-                          <div className="finalGrade">
-                            <span className="finalLabel">NOTA FINAL:</span>
-                            <span className="finalValue">{row.finalGrade}</span>
-                          </div>
-
-                          <div />
-                        </div>
-
-                        {isOpen && (
-                          <div className="subjectDetails">
-                            <div className="detailsGrid">
-                              <div>
-                                <div className="detailsLabel">Nivel</div>
-                                <div className="detailsValue">{row.level ?? "-"}</div>
+                              {/* ✅ NO hay nota final en la fila */}
+                              <div className="mutedText" style={{ justifySelf: "end" }}>
+                                {subj.fromDate} → {subj.toDate ?? "Actual"}
                               </div>
 
-                              <div>
-                                <div className="detailsLabel">Cierre</div>
-                                <div className="detailsValue">{row.closedAt ?? "-"}</div>
+                              <div />
+                            </div>
+
+                            {isOpen && (
+                              <div className="subjectDetails">
+                                <div className="detailsGrid">
+                                  <div>
+                                    <div className="detailsLabel">Sistema</div>
+                                    <div className="detailsValue">
+                                      {system === "ORIGINAL" ? "Original" : selectedCountryMeta?.label ?? system}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="detailsLabel">Período</div>
+                                    <div className="detailsValue">
+                                      {subj.fromDate} → {subj.toDate ?? todayISO()}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="detailsLabel" style={{ marginTop: 10 }}>
+                                  Evaluaciones
+                                </div>
+
+                                {examsState?.loading ? (
+                                  <div className="detailsValue">Cargando evaluaciones...</div>
+                                ) : examsState?.error ? (
+                                  <div className="detailsValue" style={{ color: "var(--danger, #c00)" }}>
+                                    {examsState.error}
+                                  </div>
+                                ) : (examsState?.data ?? []).length === 0 ? (
+                                  <div className="detailsValue">Sin evaluaciones registradas.</div>
+                                ) : (
+                                  <table className="detailsTable">
+                                    <thead>
+                                      <tr>
+                                        <th>Instancia</th>
+                                        <th>Nota</th>
+                                        <th>Fecha</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {examsState.data.map((ex, i) => (
+                                        <tr key={ex.id ?? ex._id ?? `${subj.subjectId}-${i}`}>
+                                          {/* 🔧 Ajustá a tu GradeOut real */}
+                                          <td>{ex.stage ?? ex.name ?? ex.type ?? "—"}</td>
+                                          <td>{ex.grade ?? ex.value ?? ex.score ?? "—"}</td>
+                                          <td>{ex.date ?? ex.takenAt ?? ex.createdAt ?? "—"}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
                               </div>
-                            </div>
-
-                            <div className="detailsLabel" style={{ marginTop: 10 }}>
-                              Parciales
-                            </div>
-
-                            {(row.partials ?? []).length === 0 ? (
-                              <div className="detailsValue">Sin parciales.</div>
-                            ) : (
-                              <table className="detailsTable">
-                                <thead>
-                                  <tr>
-                                    <th>Instancia</th>
-                                    <th>Nota</th>
-                                    <th>Fecha</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {row.partials.map((p, i) => (
-                                    <tr key={i}>
-                                      <td>{p.name}</td>
-                                      <td>{p.grade}</td>
-                                      <td>{p.date}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
                             )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          ))}
         </div>
       )}
     </div>

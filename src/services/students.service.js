@@ -1,12 +1,13 @@
+// src/services/students.service.js
 import http from "./http";
 
 export const StudentsService = {
-  // Backend espera first_name, last_name, nationality, identity
+  // ✅ Backend espera: firstName, lastName, nationality, identity
   list: (params = {}) =>
     http.get("/api/students", {
       params: {
-        first_name: params.first_name ?? undefined,
-        last_name: params.last_name ?? undefined, // el back lo usa como like
+        firstName: params.firstName ?? undefined,
+        lastName: params.lastName ?? undefined,
         nationality: params.nationality ?? undefined,
         identity: params.identity ?? undefined,
         limit: params.limit ?? 100,
@@ -16,23 +17,20 @@ export const StudentsService = {
 
   getById: (id) => http.get(`/api/students/${id}`),
 
+  // ✅ Backend StudentCreate: firstName, lastName, birthDate(date), nationality, identity
   create: (data) =>
     http.post("/api/students", {
       firstName: data.firstName,
       lastName: data.lastName,
-      birthDate: data.birthDate,
-      nationality: data.nationality,
+      birthDate: data.birthDate, // "YYYY-MM-DD"
+      nationality: data.nationality, // ISO3
       ...(data.identity ? { identity: data.identity } : {}),
     }),
 
-  // (ya no lo usás en UI, pero lo dejo por si lo necesitás)
   remove: (id) => http.delete(`/api/students/${id}`),
 
-  // ✅ Historial (si lo usás en HistorialAcademico real)
   history: (studentId) => http.get(`/api/students/${studentId}/history`),
 
-  // ✅ Asociar institución al alumno
-  // POST /students/{student_id}/institution?institution_id=...&start=...&end=...
   linkInstitution: (studentId, { institution_id, start, end }) =>
     http.post(`/api/students/${studentId}/institution`, null, {
       params: {
@@ -42,8 +40,6 @@ export const StudentsService = {
       },
     }),
 
-  // ✅ Asociar materia cursada (en Neo4j) con nota y fechas
-  // POST /students/{student_id}/subject?subject_id=...&start=...&grade=...&end=...
   linkSubject: (studentId, { subject_id, start, grade, end }) =>
     http.post(`/api/students/${studentId}/subject`, null, {
       params: {
