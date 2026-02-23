@@ -439,6 +439,13 @@ select.input {
   box-shadow: none;
 }
 
+.page select,
+.page .input,
+.page select option {
+  color: #111;
+  background-color: #fff;
+}
+
 /* Algunos navegadores modernos usan focus-visible */
 .subjectToggle:focus-visible {
   outline: none;
@@ -524,4 +531,80 @@ select.input {
 
 .inputDate {
   color-scheme: light;
+}
+
+/* ===== Dashboard ===== */
+.dashboardPage {
+  color: #111;
+}
+
+.dashboardPage .pageTitle,
+.dashboardPage h1,
+.dashboardPage h3,
+.dashboardPage p,
+.dashboardPage .label,
+.dashboardPage .mutedText,
+.dashboardPage .th,
+.dashboardPage .td {
+  color: #111;
+}
+
+.dashboardPage .mutedText {
+  color: #444;
+}
+
+/* select/options en negro sobre fondo blanco */
+.dashboardPage select,
+.dashboardPage select option,
+.dashboardPage .input {
+  color: #111;
+  background-color: #fff;
+}
+
+.dashboardFilters .filtersGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.dashboardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.dashboardBigValue {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.dashboardBarRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.barTrack {
+  width: 100%;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 999px;
+}
+
+.dashboardSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
