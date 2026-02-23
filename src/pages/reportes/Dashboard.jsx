@@ -12,16 +12,46 @@ function normalizeList(data) {
 }
 
 function normalizeKeyValueOptions(payload) {
-  // soporta objeto key->value o array {key,value}
+  // soporta:
+  // 1) objeto key->value (string/number/etc)
+  // 2) array [{key,value}] (o variantes)
+  // 3) objeto country -> [systems...]  <-- NUEVO
+
   if (!payload) return [];
 
+  // Caso: objeto (no array)
   if (typeof payload === "object" && !Array.isArray(payload)) {
-    return Object.entries(payload).map(([key, value]) => ({
+    const entries = Object.entries(payload);
+
+    // NUEVO: detecta si es country -> array (ej: { GBR: ["GBR_ASTAR_F", ...], ... })
+    const isCountryToArray =
+      entries.length > 0 && entries.every(([, v]) => Array.isArray(v));
+
+    if (isCountryToArray) {
+      // aplanar todos los arrays en una sola lista
+      const flat = entries.flatMap(([, arr]) => arr);
+
+      // dedupe por si algún sistema aparece repetido
+      const unique = Array.from(
+        new Set(
+          flat
+            .filter((x) => x !== null && x !== undefined && String(x).trim() !== "")
+            .map((x) => String(x))
+        )
+      );
+
+      // lo devuelvo como [{key,value}] para que lo consumas igual que antes
+      return unique.map((sys) => ({ key: sys, value: sys }));
+    }
+
+    // Caso original: key->value
+    return entries.map(([key, value]) => ({
       key: String(key),
       value: String(value ?? key),
     }));
   }
 
+  // Caso: array de objetos
   if (Array.isArray(payload)) {
     return payload
       .map((row) => {
@@ -38,141 +68,69 @@ function normalizeKeyValueOptions(payload) {
 }
 
 export default function DashboardReportes() {
-  const [country, setCountry] = useState(""); // ISO3
+  const [country, setCountry] = useState("");
   const [institutionId, setInstitutionId] = useState("");
 
-  // 🔹 siempre hay un targetSystem (default ZA, pero se ajusta al país)
+  // 🔹 targetSystem ahora siempre existe (default ZA)
   const [targetSystem, setTargetSystem] = useState("ZA");
 
   const [summary, setSummary] = useState(null);
   const [subjects, setSubjects] = useState([]);
 
   const [countries, setCountries] = useState([]);
-
-  // instituciones DEPENDEN de country
   const [institutions, setInstitutions] = useState([]);
-  const [loadingInstitutions, setLoadingInstitutions] = useState(false);
-
-  // systems DEPENDEN de country (response = { ISO3: [systems...] })
-  const [systemsByCountry, setSystemsByCountry] = useState({});
-  const [loadingSystems, setLoadingSystems] = useState(false);
+  const [systems, setSystems] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [error, setError] = useState("");
   const [sortByAvgDesc, setSortByAvgDesc] = useState(true);
 
-  // ===== LOAD COUNTRIES + SYSTEMS MAP (una vez) =====
+  // ===== LOAD OPTIONS =====
   useEffect(() => {
     async function loadOptions() {
       try {
-        setLoadingSystems(true);
-
-        const [countriesRes, sysRes] = await Promise.all([
+        const [countriesRes, instRes, sysRes] = await Promise.all([
           OptionsService.listCountries(),
-          OptionsService.listSystem(), // <- devuelve { GBR: [...], USA: [...], ... }
+          InstitutionsService.list(),
+          OptionsService.listSystem(),
         ]);
 
-        // countries
         const cData = countriesRes?.data;
         const cPayload = Array.isArray(cData) ? cData : cData?.items ?? cData;
 
-        const normalizedCountries = normalizeKeyValueOptions(cPayload).map((c) => ({
-          iso3: c.key.replace(/^country-/, ""),
-          name: c.value,
-        }));
-        setCountries(normalizedCountries);
+        const normalizedCountries = normalizeKeyValueOptions(cPayload).map(
+          (c) => ({
+            iso3: c.key.replace(/^country-/, ""),
+            name: c.value,
+          })
+        );
 
-        // systems
-        const sysData = sysRes?.data?.items ?? sysRes?.data ?? {};
-        // sysData esperado: { "ARG": ["ARG_1_10"], "ZAF": ["ZA"], ... }
-        setSystemsByCountry(sysData && typeof sysData === "object" ? sysData : {});
+        setCountries(normalizedCountries);
+        setInstitutions(normalizeList(instRes?.data));
+
+        const sysPayload =
+          sysRes?.data?.items ?? sysRes?.data ?? [];
+
+        const normalizedSystems = normalizeKeyValueOptions(sysPayload);
+        console.log(Object.values(normalizedSystems))
+        setSystems(normalizedSystems);
+
+      
+
+        // Si existe ZA en options, aseguramos default correcto
+        if (normalizedSystems.some((s) => s.key === "ZA")) {
+          setTargetSystem("ZA");
+        }
       } catch {
         setCountries([]);
-        setSystemsByCountry({});
-      } finally {
-        setLoadingSystems(false);
+        setInstitutions([]);
+        setSystems([]);
       }
     }
 
     loadOptions();
   }, []);
-
-  // ===== LOAD INSTITUTIONS BY COUNTRY (cada vez que cambia country) =====
-  useEffect(() => {
-    async function loadInstitutionsByCountry() {
-      setInstitutions([]);
-      setInstitutionId(""); // ✅ reset al cambiar país
-      setSubjects([]); // ✅ no tiene sentido mantener materias de otra institución
-
-      if (!country) return;
-
-      try {
-        setLoadingInstitutions(true);
-
-        // ✅ intentamos pasar country al backend
-        const res = await InstitutionsService.list({
-          country,
-        });
-
-        const list = normalizeList(res?.data);
-
-        // por si el backend no filtra, filtramos nosotros cuando exista i.country
-        const filtered = (list ?? []).filter((i) => {
-          const c = (i?.country ?? "").toString().trim();
-          return !c ? true : c === country;
-        });
-
-        setInstitutions(filtered);
-      } catch {
-        // fallback: cargar todo y filtrar local (si el backend no soporta param)
-        try {
-          const res2 = await InstitutionsService.list({ limit: 500, skip: 0 });
-          const list2 = normalizeList(res2?.data);
-          const filtered2 = (list2 ?? []).filter((i) => (i?.country ?? "") === country);
-          setInstitutions(filtered2);
-        } catch {
-          setInstitutions([]);
-        }
-      } finally {
-        setLoadingInstitutions(false);
-      }
-    }
-
-    loadInstitutionsByCountry();
-  }, [country]);
-
-  // ===== SYSTEMS DISPONIBLES SEGÚN COUNTRY =====
-  const systemsForSelectedCountry = useMemo(() => {
-    if (!country) return [];
-    const arr = systemsByCountry?.[country];
-    return Array.isArray(arr) ? arr : [];
-  }, [systemsByCountry, country]);
-
-  // ===== DEFAULT TARGET SYSTEM al cambiar country/systems =====
-  useEffect(() => {
-    if (!country) {
-      setTargetSystem("ZA");
-      return;
-    }
-
-    const sys = systemsForSelectedCountry;
-
-    if (sys.length === 0) {
-      // si no hay sistemas para ese país, dejamos ZA (igual la API recibirá algo válido si backend lo acepta)
-      setTargetSystem("ZA");
-      return;
-    }
-
-    // ✅ regla: ZA por default para ZAF; sino primer sistema disponible
-    if (country === "ZAF" && sys.includes("ZA")) {
-      setTargetSystem("ZA");
-      return;
-    }
-
-    setTargetSystem(sys[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country, systemsForSelectedCountry.join("|")]);
 
   // ===== LOAD SUMMARY =====
   useEffect(() => {
@@ -188,9 +146,9 @@ export default function DashboardReportes() {
         setLoading(true);
 
         const res = await DashboardServices.get({
-          country, // requerido
+          country,
           institutionId: institutionId || undefined,
-          targetSystem, // siempre seteado
+          targetSystem,
         });
 
         setSummary(res?.data ?? null);
@@ -271,7 +229,7 @@ export default function DashboardReportes() {
               value={country}
               onChange={(e) => {
                 setCountry(e.target.value);
-                // el reset de institutionId lo hace el effect de institutions
+                setInstitutionId("");
               }}
             >
               <option value="">Seleccionar</option>
@@ -289,16 +247,9 @@ export default function DashboardReportes() {
               className="input"
               value={institutionId}
               onChange={(e) => setInstitutionId(e.target.value)}
-              disabled={!country || loadingInstitutions}
+              disabled={!country}
             >
-              <option value="">
-                {!country
-                  ? "Elegí país primero"
-                  : loadingInstitutions
-                    ? "Cargando instituciones..."
-                    : "Promedio país"}
-              </option>
-
+              <option value="">Promedio país</option>
               {institutions.map((i) => (
                 <option key={i._id ?? i.id} value={i._id ?? i.id}>
                   {i.name ?? "(Sin nombre)"}
@@ -313,50 +264,24 @@ export default function DashboardReportes() {
               className="input"
               value={targetSystem}
               onChange={(e) => setTargetSystem(e.target.value)}
-              disabled={!country || loadingSystems || systemsForSelectedCountry.length === 0}
+              disabled={!country}
             >
-              {!country ? (
-                <option value="ZA">Elegí país primero</option>
-              ) : loadingSystems ? (
-                <option value={targetSystem}>Cargando sistemas...</option>
-              ) : systemsForSelectedCountry.length === 0 ? (
-                <option value={targetSystem}>Sin sistemas para {country}</option>
-              ) : (
-                // ✅ response: { ISO3: [ "ARG_1_10", ... ] }
-                systemsForSelectedCountry.map((sys) => (
-                  <option key={sys} value={sys}>
-                    {sys}
-                  </option>
-                ))
-              )}
+              {systems.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.value}
+                </option>
+              ))}
             </select>
           </label>
-        </div>
-
-        <div className="actions" style={{ marginTop: 12 }}>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => {
-              setCountry("");
-              setInstitutionId("");
-              setTargetSystem("ZA");
-              setSummary(null);
-              setSubjects([]);
-              setError("");
-              setInstitutions([]);
-            }}
-            disabled={loading || loadingSubjects || loadingInstitutions}
-          >
-            Limpiar
-          </button>
         </div>
       </div>
 
       {error && <p className="errorText">{error}</p>}
 
       {!country ? (
-        <div className="card">Seleccioná un país para visualizar métricas.</div>
+        <div className="card">
+          Seleccioná un país para visualizar métricas.
+        </div>
       ) : loading ? (
         <div className="card">Cargando métricas...</div>
       ) : !summary ? (
@@ -368,12 +293,16 @@ export default function DashboardReportes() {
             <div className="dashboardHeader">
               <div>
                 <div className="mutedText">Sistema de calificación</div>
-                <div style={{ fontWeight: 700 }}>{summary.displaySystem}</div>
+                <div style={{ fontWeight: 700 }}>
+                  {summary.displaySystem}
+                </div>
               </div>
 
               <div style={{ textAlign: "right" }}>
                 <div className="mutedText">Promedio</div>
-                <div className="dashboardBigValue">{summary.displayValue}</div>
+                <div className="dashboardBigValue">
+                  {summary.displayValue}
+                </div>
               </div>
             </div>
           </div>
