@@ -121,6 +121,24 @@
   color: #444;
 }
 
+/* Ajuste de legibilidad general en la sección de materias */
+.subjectRow,
+.subjectDetails,
+.detailsLabel,
+.detailsValue,
+.detailsTable,
+.detailsTable th,
+.detailsTable td,
+.mutedText {
+  color: #111;
+  /* o tu variable: var(--text, #111) */
+}
+
+/* Si querés que "mutedText" siga siendo gris, pero visible */
+.mutedText {
+  color: #555;
+}
+
 select.input {
   -webkit-appearance: none;
   appearance: none;
@@ -222,7 +240,7 @@ select.input {
 }
 
 .academicBoard {
-  border: 4px solid #111;
+  border: 2px solid #111;
   border-radius: 6px;
   padding: 14px;
   background: #fff;
@@ -232,13 +250,15 @@ select.input {
   display: grid;
   grid-template-columns: 120px 1fr;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  /* antes: start */
   margin-bottom: 18px;
 }
 
 .yearBox {
   border: 4px solid #111;
-  height: 120px;
+  min-height: 120px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -253,16 +273,17 @@ select.input {
 }
 
 .subjectRow {
-  border: 4px solid #111;
+  border: 2px solid #111;
   border-radius: 4px;
   padding: 10px 12px;
   display: grid;
-  grid-template-columns: 1fr 140px 170px 26px;
-  gap: 10px;
+  grid-template-columns: 1fr 260px 1px;
   align-items: center;
+  gap: 12px;
 }
 
 .subjectName {
+  color: #111;
   font-weight: 900;
   letter-spacing: .3px;
   text-transform: uppercase;
@@ -383,6 +404,8 @@ select.input {
 
 /* Botón clickeable solo en la columna de la materia */
 .subjectToggle {
+  outline: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -395,11 +418,38 @@ select.input {
   text-align: left;
 }
 
+.subjectToggle:hover {
+  background: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Cuando hacés click */
+.subjectToggle:active {
+  background: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Cuando recibe foco (importantísimo para sacar el contorno azul) */
+.subjectToggle:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Algunos navegadores modernos usan focus-visible */
+.subjectToggle:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /* Panel desplegable */
 .subjectDetails {
-  border-left: 4px solid #111;
-  border-right: 4px solid #111;
-  border-bottom: 4px solid #111;
+  border-left: 2px solid #111;
+  border-right: 2px solid #111;
+  border-bottom: 2px solid #111;
   border-radius: 0 0 4px 4px;
   padding: 12px;
   margin-top: -6px;

@@ -224,7 +224,7 @@ export default function HistorialAcademico() {
                     </div>
 
                     {(inst.subjects ?? []).length === 0 ? (
-                      <div className="mutedText">Sin materias en este año.</div>
+                      <div className="mutedText">Sin materias cargadas en este año.</div>
                     ) : (
                       (inst.subjects ?? []).map((subj) => {
                         const fromDate = subj.fromDate;
