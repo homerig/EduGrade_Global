@@ -1,3 +1,4 @@
+// src/pages/estudiantes/Agregar.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "../../styles/ui.css";
@@ -44,22 +45,22 @@ function makeInstance() {
 function isTouched(it) {
   return Boolean(
     String(it?.name || "").trim() ||
-    String(it?.type || "").trim() ||
-    String(it?.value || "").trim() ||
-    String(it?.grade || "").trim() ||
-    String(it?.system || "").trim() ||
-    String(it?.date || "").trim()
+      String(it?.type || "").trim() ||
+      String(it?.value || "").trim() ||
+      String(it?.grade || "").trim() ||
+      String(it?.system || "").trim() ||
+      String(it?.date || "").trim()
   );
 }
 
 function isRowComplete(r) {
   return Boolean(
     String(r?.name || "").trim() &&
-    String(r?.type || "").trim() &&
-    String(r?.value || "").trim() &&
-    String(r?.grade || "").trim() &&
-    String(r?.system || "").trim() &&
-    String(r?.date || "").trim()
+      String(r?.type || "").trim() &&
+      String(r?.value || "").trim() &&
+      String(r?.grade || "").trim() &&
+      String(r?.system || "").trim() &&
+      String(r?.date || "").trim()
   );
 }
 
@@ -193,9 +194,9 @@ export default function Agregar() {
         setSubjectEnd("");
         setError(
           e?.response?.data?.detail ||
-          e?.response?.data?.message ||
-          e?.message ||
-          "No se pudieron cargar las instituciones del alumno."
+            e?.response?.data?.message ||
+            e?.message ||
+            "No se pudieron cargar las instituciones del alumno."
         );
       } finally {
         if (alive) setLoadingInstitutions(false);
@@ -246,9 +247,9 @@ export default function Agregar() {
         setSubjectEnd("");
         setError(
           e?.response?.data?.detail ||
-          e?.response?.data?.message ||
-          e?.message ||
-          "No se pudieron cargar las materias."
+            e?.response?.data?.message ||
+            e?.message ||
+            "No se pudieron cargar las materias."
         );
       } finally {
         if (alive) setLoadingSubjects(false);
@@ -283,9 +284,9 @@ export default function Agregar() {
         setGradeOptions([]);
         setError(
           e?.response?.data?.detail ||
-          e?.response?.data?.message ||
-          e?.message ||
-          "No se pudieron cargar las opciones de grade."
+            e?.response?.data?.message ||
+            e?.message ||
+            "No se pudieron cargar las opciones de grade."
         );
       } finally {
         if (alive) setLoadingGrades(false);
@@ -298,7 +299,7 @@ export default function Agregar() {
     };
   }, []);
 
-  // 4) load systems by country
+  // 4) load systems by country (robusto: alias + fallback a todos)
   useEffect(() => {
     let alive = true;
 
@@ -315,11 +316,30 @@ export default function Agregar() {
         if (!alive) return;
 
         const data = res?.data ?? {};
-        const arr = Array.isArray(data[institutionCountry])
-          ? data[institutionCountry]
-          : [];
 
-        const normalized = arr.map((sys) => ({
+        const COUNTRY_ALIAS = {
+          UK: "GBR",
+          US: "USA",
+          DE: "DEU",
+          ZA: "ZAF",
+        };
+
+        const key1 = institutionCountry;
+        const key2 = COUNTRY_ALIAS[institutionCountry] || "";
+
+        let arr = Array.isArray(data[key1]) ? data[key1] : [];
+        if (arr.length === 0 && key2) {
+          arr = Array.isArray(data[key2]) ? data[key2] : [];
+        }
+
+        // fallback: si no hay match, mostrar todos los sistemas disponibles
+        if (arr.length === 0) {
+          const all = Object.values(data).flat();
+          arr = Array.isArray(all) ? all : [];
+        }
+
+        const uniq = Array.from(new Set(arr.map((x) => String(x))));
+        const normalized = uniq.map((sys) => ({
           value: String(sys),
           label: String(sys),
         }));
@@ -337,9 +357,9 @@ export default function Agregar() {
         setSystemOptions([]);
         setError(
           e?.response?.data?.detail ||
-          e?.response?.data?.message ||
-          e?.message ||
-          "No se pudieron cargar las opciones de system."
+            e?.response?.data?.message ||
+            e?.message ||
+            "No se pudieron cargar las opciones de system."
         );
       } finally {
         if (alive) setLoadingSystems(false);
@@ -356,7 +376,6 @@ export default function Agregar() {
     setInstances((prev) => [...prev, makeInstance()]);
   }
 
-  // X: elimina fila; si es la única, blanquea todo
   function removeInstance(iid) {
     setInstances((prev) => {
       if (prev.length <= 1) {
@@ -411,7 +430,9 @@ export default function Agregar() {
 
     if (!studentId) return setError("Falta studentId en la URL.");
     if (noInstitutions)
-      return setError("No se puede asignar una nota sin una institución asociada.");
+      return setError(
+        "No se puede asignar una nota sin una institución asociada."
+      );
     if (!institutionId) return setError("Seleccioná una institución.");
     if (!subjectId) return setError("Seleccioná una materia.");
 
@@ -438,7 +459,6 @@ export default function Agregar() {
       );
     }
 
-    // validar fechas filas por rango de materia
     const min = examMinDate ? parseISODate(examMinDate) : null;
     const max = examMaxDate ? parseISODate(examMaxDate) : null;
 
@@ -451,21 +471,17 @@ export default function Agregar() {
     });
 
     if (outOfRange) {
-      return setError("Hay fechas fuera del rango permitido por Inicio/Fin de la materia.");
+      return setError(
+        "Hay fechas fuera del rango permitido por Inicio/Fin de la materia."
+      );
     }
 
     setSaving(true);
     setError("");
 
     try {
-      // 1) linkSubject por grade único
       const uniqueGrades = Array.from(new Set(cleaned.map((x) => x.grade)));
       for (const g of uniqueGrades) {
-        console.log("Linking subject with grade =>", {
-          studentId,
-          subjectId,
-          grade: g,
-        });
         await StudentsService.linkSubject(studentId, {
           subject_id: subjectId,
           start: subjectStart,
@@ -473,22 +489,20 @@ export default function Agregar() {
           end: subjectEnd || undefined,
         });
       }
-      console.log(cleaned);
+
       for (const x of cleaned) {
         const payload = {
           subjectId,
           studentId,
           institutionId,
           name: x.name,
-          system: x.system,   // 👈 acá debería ser ARG_1_10, etc.
+          system: x.system,
           type: x.type,
           country,
           grade: x.grade,
           date: x.date,
           value: x.value,
         };
-
-        console.log("createExam payload =>", payload);
 
         await ExamServices.createExam(payload);
       }
@@ -500,10 +514,10 @@ export default function Agregar() {
       console.error("SAVE ERROR =>", err);
       setError(
         err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        JSON.stringify(err?.response?.data || {}, null, 2) ||
-        err?.message ||
-        "No se pudo guardar. Intentá nuevamente."
+          err?.response?.data?.message ||
+          JSON.stringify(err?.response?.data || {}, null, 2) ||
+          err?.message ||
+          "No se pudo guardar. Intentá nuevamente."
       );
     } finally {
       setSaving(false);
@@ -622,7 +636,6 @@ export default function Agregar() {
             </select>
           </label>
 
-          {/* Inicio/Fin materia */}
           <div
             style={{
               display: "grid",
@@ -803,7 +816,9 @@ export default function Agregar() {
                   type="button"
                   onClick={() => removeInstance(it.id)}
                   disabled={disableAll}
-                  title={instances.length <= 1 ? "Blanquea todo" : "Eliminar fila"}
+                  title={
+                    instances.length <= 1 ? "Blanquea todo" : "Eliminar fila"
+                  }
                   style={{ height: 40 }}
                 >
                   ✕

@@ -1,6 +1,6 @@
 // src/pages/estudiantes/Historial.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import "../../styles/ui.css";
 import { COUNTRIES } from "../../constants/countries";
 import { HistoryService } from "../../services/history.service";
@@ -17,7 +17,6 @@ function todayISO() {
 export default function HistorialAcademico() {
   const { id } = useParams();
   const location = useLocation();
-  const navigate = useNavigate();
 
   // ✅ Si venís desde la tabla, recibís nombre y apellido por state
   const studentFromState = location.state?.student;
@@ -28,28 +27,28 @@ export default function HistorialAcademico() {
     return full || null;
   }, [studentFromState]);
 
-  // ✅ selector: ORIGINAL + países (ISO3)
-  const [system, setSystem] = useState("ORIGINAL"); // "ORIGINAL" | iso3
+  // ✅ selector: ORIGINAL + sistemas (system code)
+  // system ahora vale: "ORIGINAL" | "ARG_1_10" | "USA_GPA_0_4" | "DEU_1_6_INVERTED" | "ZA" | etc.
+  const [system, setSystem] = useState("ORIGINAL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [history, setHistory] = useState(null); // { years: [...] }
+  const [history, setHistory] = useState(null);
 
-  // ✅ expansión por materia
   const [openKey, setOpenKey] = useState(null);
+  const [examsByKey, setExamsByKey] = useState({});
 
-  // ✅ cache de exams por materia+system
-  const [examsByKey, setExamsByKey] = useState({}); // key -> { loading, error, data }
-
-  // Meta del país seleccionado (flag/label)
+  // Meta del sistema seleccionado (flag/label)
   const selectedCountryMeta = useMemo(() => {
     if (system === "ORIGINAL") return null;
-    return COUNTRIES.find((x) => x.iso3 === system) ?? null;
+    return COUNTRIES.find((x) => x.system === system) ?? null;
   }, [system]);
 
-  // ✅ targetSystem REAL (ISO3). Original => null (no se manda)
+  // ✅ targetSystem REAL para backend:
+  // - ORIGINAL => no se manda
+  // - resto => system code (ARG_1_10 / DEU_... / ZA / etc.)
   const targetSystem = useMemo(() => {
     if (system === "ORIGINAL") return null;
-    return system; // <-- ISO3 directo
+    return system;
   }, [system]);
 
   // 1) Cargar history real (servicio)
@@ -129,7 +128,7 @@ export default function HistorialAcademico() {
         institutionId,
         fromDate,
         toDate,
-        ...(targetSystem ? { targetSystem } : {}), // ✅ ISO3 o nada
+        ...(targetSystem ? { targetSystem } : {}), // ✅ system code o nada
       };
 
       console.log("[EXAMS] request params:", params);
@@ -174,7 +173,7 @@ export default function HistorialAcademico() {
           </div>
         </div>
 
-        {/* selector arriba derecha: ORIGINAL + países (ISO3) */}
+        {/* selector arriba derecha: ORIGINAL + sistemas */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
           <div className="countryPill">
             <div className="countryLeft">
@@ -190,8 +189,9 @@ export default function HistorialAcademico() {
               aria-label="Seleccionar sistema de notas"
             >
               <option value="ORIGINAL">Original (sin conversión)</option>
+
               {COUNTRIES.map((c) => (
-                <option key={c.iso3} value={c.iso3}>
+                <option key={c.system} value={c.system}>
                   {c.label}
                 </option>
               ))}
@@ -227,7 +227,6 @@ export default function HistorialAcademico() {
                       <div className="mutedText">Sin materias en este año.</div>
                     ) : (
                       (inst.subjects ?? []).map((subj) => {
-                        // ✅ key única (incluye sistema + fechas para cache)
                         const fromDate = subj.fromDate;
                         const toDateKey = subj.toDate ?? "OPEN";
                         const key = `${y.year}|${inst.institutionId}|${subj.subjectId}|${fromDate}|${toDateKey}|${system}`;
@@ -255,7 +254,6 @@ export default function HistorialAcademico() {
                                 </span>
                               </button>
 
-                              {/* ✅ NO hay nota final en la fila */}
                               <div className="mutedText" style={{ justifySelf: "end" }}>
                                 {subj.fromDate} → {subj.toDate ?? "Actual"}
                               </div>
@@ -305,9 +303,11 @@ export default function HistorialAcademico() {
                                     <tbody>
                                       {examsState.data.map((ex, i) => (
                                         <tr key={ex.id ?? ex._id ?? `${subj.subjectId}-${i}`}>
-                                          {/* 🔧 Ajustá a tu GradeOut real */}
                                           <td>{ex.stage ?? ex.name ?? ex.type ?? "—"}</td>
-                                          <td>{ex.grade ?? ex.value ?? ex.score ?? "—"}</td>
+
+                                          {/* ✅ si el backend devuelve displayValue, usalo */}
+                                          <td>{ex.displayValue ?? ex.value ?? ex.score ?? "—"}</td>
+
                                           <td>{ex.date ?? ex.takenAt ?? ex.createdAt ?? "—"}</td>
                                         </tr>
                                       ))}
