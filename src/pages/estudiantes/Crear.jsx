@@ -1,20 +1,91 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { StudentsService } from "../../services/students.service";
+import { OptionsService } from "../../services/options.service";
 import { useNavigate } from "react-router-dom";
 import "../../styles/ui.css";
-import { COUNTRIES } from "../../constants/countries";
 
 export default function CrearEstudiante() {
   const nav = useNavigate();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [nationality, setNationality] = useState("ZAF");
+  const [birthDate, setBirthDate] = useState(""); // YYYY-MM-DD (date input)
+  const [nationality, setNationality] = useState(""); // ISO3
   const [identity, setIdentity] = useState("");
+
+  const [countries, setCountries] = useState([]); // [{ iso3, name }]
+  const [loadingCountries, setLoadingCountries] = useState(false);
 
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const todayISO = useMemo(() => {
+    // YYYY-MM-DD local
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }, []);
+
+  function normalizeCountriesPayload(payload) {
+    // soporta:
+    // 1) objeto: { "country-ARG": "Argentina", ... }
+    // 2) array: [{ key: "country-ARG", value: "Argentina" }, ...]
+    if (!payload) return [];
+
+    if (typeof payload === "object" && !Array.isArray(payload)) {
+      return Object.entries(payload)
+        .map(([key, value]) => {
+          const iso3 = String(key).replace(/^country-/, "").trim();
+          const name = String(value ?? "").trim();
+          if (!iso3 || !name) return null;
+          return { iso3, name };
+        })
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(payload)) {
+      return payload
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          const k = row.key ?? row.k ?? row.code ?? row.iso3 ?? "";
+          const v = row.value ?? row.v ?? row.name ?? "";
+          const iso3 = String(k).replace(/^country-/, "").trim();
+          const name = String(v).trim();
+          if (!iso3 || !name) return null;
+          return { iso3, name };
+        })
+        .filter(Boolean);
+    }
+
+    return [];
+  }
+
+  async function loadCountries() {
+    try {
+      setLoadingCountries(true);
+      const res = await OptionsService.listCountries();
+
+      const data = res?.data;
+      const payload = Array.isArray(data) ? data : data?.items ?? data;
+
+      const normalized = normalizeCountriesPayload(payload).sort((a, b) => a.iso3.localeCompare(b.iso3));
+      setCountries(normalized);
+
+      // si querés setear un default (ej ZAF) cuando exista:
+      // if (!nationality && normalized.some(c => c.iso3 === "ZAF")) setNationality("ZAF");
+    } catch (err) {
+      setCountries([]);
+    } finally {
+      setLoadingCountries(false);
+    }
+  }
+
+  useEffect(() => {
+    loadCountries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -28,11 +99,12 @@ export default function CrearEstudiante() {
 
     if (!fn) return setError("First name obligatorio.");
     if (!ln) return setError("Last name obligatorio.");
-    if (!bd) return setError("Birth date obligatorio (YYYY-MM-DD).");
+    if (!bd) return setError("Birth date obligatoria.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(bd)) {
-      return setError("Birth date debe ser YYYY-MM-DD (ej: 2002-07-15).");
+      return setError("Birth date debe ser YYYY-MM-DD.");
     }
-    if (!nat) return setError("Nationality obligatoria.");
+    if (bd > todayISO) return setError("Birth date no puede ser una fecha futura.");
+    if (!nat) return setError("Country obligatoria.");
 
     const payload = {
       firstName: fn,
@@ -46,12 +118,8 @@ export default function CrearEstudiante() {
 
     try {
       setSaving(true);
-
       const res = await StudentsService.create(payload);
-
       console.log("[CREATE STUDENT] OK", res?.status, res?.data);
-
-      // ✅ Volver a la lista (ruta existe en tu App.jsx)
       nav("/estudiantes/consultar");
     } catch (err) {
       console.log("[CREATE STUDENT] ERROR", err?.response?.status, err?.response?.data, err);
@@ -86,21 +154,31 @@ export default function CrearEstudiante() {
           </label>
 
           <label className="label">
-            Birth date (YYYY-MM-DD)
+            Birth date
             <input
               className="input"
+              type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              placeholder="YYYY-MM-DD"
+              max={todayISO}
             />
           </label>
 
           <label className="label">
-            Nationality
-            <select className="input" value={nationality} onChange={(e) => setNationality(e.target.value)}>
-              {COUNTRIES.map((c) => (
+            Country
+            <select
+              className="input"
+              value={nationality}
+              onChange={(e) => setNationality(e.target.value)}
+              disabled={loadingCountries}
+            >
+              <option value="">
+                {loadingCountries ? "Cargando países..." : "Seleccionar país"}
+              </option>
+
+              {countries.map((c) => (
                 <option key={c.iso3} value={c.iso3}>
-                  {c.label}
+                  {c.iso3} - {c.name}
                 </option>
               ))}
             </select>

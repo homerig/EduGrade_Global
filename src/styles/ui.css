@@ -100,6 +100,27 @@
   outline: none;
 }
 
+/* ===== FIX contraste en fondo claro ===== */
+
+.page {
+  color: #111;
+  /* texto base negro */
+}
+
+.pageTitle,
+.label,
+.th,
+.td,
+.mutedText,
+.card h3,
+.card p {
+  color: #111;
+}
+
+.mutedText {
+  color: #444;
+}
+
 select.input {
   -webkit-appearance: none;
   appearance: none;

@@ -3,11 +3,45 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "../../styles/ui.css";
 import { InstitutionsService } from "../../services/institutions.service";
 import { StudentsService } from "../../services/students.service";
+import { OptionsService } from "../../services/options.service";
 
 function normalizeList(data) {
   if (!data) return [];
   if (Array.isArray(data)) return data;
   if (Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+function normalizeCountriesPayload(payload) {
+  // 1) objeto: { "country-ARG": "Argentina", ... }
+  // 2) array: [{ key: "country-ARG", value: "Argentina" }, ...]
+  if (!payload) return [];
+
+  if (typeof payload === "object" && !Array.isArray(payload)) {
+    return Object.entries(payload)
+      .map(([key, value]) => {
+        const iso3 = String(key).replace(/^country-/, "").trim();
+        const name = String(value ?? "").trim();
+        if (!iso3 || !name) return null;
+        return { iso3, name };
+      })
+      .filter(Boolean);
+  }
+
+  if (Array.isArray(payload)) {
+    return payload
+      .map((row) => {
+        if (!row || typeof row !== "object") return null;
+        const k = row.key ?? row.k ?? row.code ?? row.iso3 ?? "";
+        const v = row.value ?? row.v ?? row.name ?? "";
+        const iso3 = String(k).replace(/^country-/, "").trim();
+        const name = String(v).trim();
+        if (!iso3 || !name) return null;
+        return { iso3, name };
+      })
+      .filter(Boolean);
+  }
+
   return [];
 }
 
@@ -23,7 +57,7 @@ export default function EstudianteInstituciones() {
     return [fn, ln].filter(Boolean).join(" ") || studentId;
   }, [studentFromState, studentId]);
 
-  // ✅ Ahora linked es REL: { institution, startDate, endDate }
+  // linked es REL: { institution, startDate, endDate }
   const [linked, setLinked] = useState([]);
   const [all, setAll] = useState([]);
 
@@ -31,9 +65,45 @@ export default function EstudianteInstituciones() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
 
+  const [countries, setCountries] = useState([]); // [{ iso3, name }]
+  const [loadingCountries, setLoadingCountries] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const countryByIso3 = useMemo(() => {
+    const m = new Map();
+    for (const c of countries) m.set(c.iso3, c.name);
+    return m;
+  }, [countries]);
+
+  function renderCountry(countryValue) {
+    // si viene "ARG" => "ARG - Argentina"
+    // si viene "Argentina" => lo deja igual (o lo muestra como "Argentina")
+    const raw = (countryValue ?? "").toString().trim();
+    if (!raw) return "-";
+    const name = countryByIso3.get(raw);
+    return name ? `${raw} - ${name}` : raw;
+  }
+
+  async function loadCountries() {
+    try {
+      setLoadingCountries(true);
+      const res = await OptionsService.listCountries();
+      const data = res?.data;
+      const payload = Array.isArray(data) ? data : data?.items ?? data;
+
+      const normalized = normalizeCountriesPayload(payload).sort((a, b) =>
+        a.iso3.localeCompare(b.iso3)
+      );
+      setCountries(normalized);
+    } catch {
+      setCountries([]);
+    } finally {
+      setLoadingCountries(false);
+    }
+  }
 
   async function load() {
     try {
@@ -45,7 +115,6 @@ export default function EstudianteInstituciones() {
         InstitutionsService.list({ limit: 200, skip: 0 }),
       ]);
 
-      // linkedRes -> array de RELS
       const linkedList = normalizeList(linkedRes?.data);
       const allList = normalizeList(allRes?.data);
 
@@ -62,10 +131,10 @@ export default function EstudianteInstituciones() {
 
   useEffect(() => {
     load();
+    loadCountries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
 
-  // ✅ IDs de instituciones asociadas ahora viven en rel.institution._id
   const linkedIds = useMemo(() => {
     return new Set(
       (linked ?? [])
@@ -74,7 +143,6 @@ export default function EstudianteInstituciones() {
     );
   }, [linked]);
 
-  // ✅ disponibles = todas menos las ya asociadas
   const available = useMemo(() => {
     return (all ?? []).filter((inst) => !linkedIds.has(inst?._id ?? inst?.id));
   }, [all, linkedIds]);
@@ -82,7 +150,7 @@ export default function EstudianteInstituciones() {
   async function onSubmit(e) {
     e.preventDefault();
     if (!institutionId) return setError("Seleccioná una institución.");
-    if (!start) return setError("Seleccioná fecha de inicio (start).");
+    if (!start) return setError("Seleccioná fecha de inicio.");
 
     try {
       setSaving(true);
@@ -111,7 +179,7 @@ export default function EstudianteInstituciones() {
   }
 
   return (
-    <div className="page">
+    <div className="page themeLight">
       <div className="pageHeaderRow">
         <div>
           <h1 className="pageTitle">Instituciones del alumno</h1>
@@ -143,8 +211,8 @@ export default function EstudianteInstituciones() {
                 <th className="th">Nombre</th>
                 <th className="th">País</th>
                 <th className="th">Dirección</th>
-                <th className="th">Start</th>
-                <th className="th">End</th>
+                <th className="th">Inicio</th>
+                <th className="th">Fin</th>
               </tr>
             </thead>
             <tbody>
@@ -153,7 +221,7 @@ export default function EstudianteInstituciones() {
                 return (
                   <tr key={inst._id ?? inst.id} className="tr">
                     <td className="td">{inst.name ?? "-"}</td>
-                    <td className="td">{inst.country ?? "-"}</td>
+                    <td className="td">{renderCountry(inst.country)}</td>
                     <td className="td">{inst.address ?? "-"}</td>
                     <td className="td">{rel?.startDate ?? "-"}</td>
                     <td className="td">{rel?.endDate ?? "-"}</td>
@@ -187,7 +255,7 @@ export default function EstudianteInstituciones() {
           </label>
 
           <label className="label">
-            Start
+            Inicio
             <input
               className="input"
               type="date"
@@ -197,7 +265,7 @@ export default function EstudianteInstituciones() {
           </label>
 
           <label className="label">
-            End (opcional)
+            Fin (opcional)
             <input
               className="input"
               type="date"
@@ -211,6 +279,13 @@ export default function EstudianteInstituciones() {
               {saving ? "Guardando..." : "Asociar"}
             </button>
           </div>
+
+          {/* opcional: debug/estado de carga países */}
+          {loadingCountries && (
+            <p className="mutedText" style={{ marginTop: 10 }}>
+              Cargando países...
+            </p>
+          )}
         </form>
       </div>
     </div>

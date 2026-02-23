@@ -14,4 +14,11 @@ export const OptionsService = {
         only_values: true,
       },
     }),
+
+  listCountries: () =>
+    http.get("/api/options/country", {
+      params: {
+        only_values: true,
+      },
+    })
 };
