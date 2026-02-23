@@ -4,6 +4,13 @@ import "../../styles/ui.css";
 import { InstitutionsService } from "../../services/institutions.service";
 import { StudentsService } from "../../services/students.service";
 
+function normalizeList(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.items)) return data.items;
+  return [];
+}
+
 export default function EstudianteInstituciones() {
   const { id: studentId } = useParams();
   const location = useLocation();
@@ -16,6 +23,7 @@ export default function EstudianteInstituciones() {
     return [fn, ln].filter(Boolean).join(" ") || studentId;
   }, [studentFromState, studentId]);
 
+  // ✅ Ahora linked es REL: { institution, startDate, endDate }
   const [linked, setLinked] = useState([]);
   const [all, setAll] = useState([]);
 
@@ -37,11 +45,12 @@ export default function EstudianteInstituciones() {
         InstitutionsService.list({ limit: 200, skip: 0 }),
       ]);
 
-      const linkedList = linkedRes?.data ?? [];
-      const allList = allRes?.data ?? [];
+      // linkedRes -> array de RELS
+      const linkedList = normalizeList(linkedRes?.data);
+      const allList = normalizeList(allRes?.data);
 
-      setLinked(Array.isArray(linkedList) ? linkedList : linkedList?.items ?? []);
-      setAll(Array.isArray(allList) ? allList : allList?.items ?? []);
+      setLinked(linkedList);
+      setAll(allList);
     } catch (e) {
       setError(e?.response?.data?.detail || e?.message || "No se pudo cargar.");
       setLinked([]);
@@ -56,10 +65,18 @@ export default function EstudianteInstituciones() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
 
-  const linkedIds = useMemo(() => new Set(linked.map((x) => x._id ?? x.id)), [linked]);
+  // ✅ IDs de instituciones asociadas ahora viven en rel.institution._id
+  const linkedIds = useMemo(() => {
+    return new Set(
+      (linked ?? [])
+        .map((rel) => rel?.institution?._id ?? rel?.institution?.id)
+        .filter(Boolean)
+    );
+  }, [linked]);
 
+  // ✅ disponibles = todas menos las ya asociadas
   const available = useMemo(() => {
-    return (all ?? []).filter((inst) => !linkedIds.has(inst._id ?? inst.id));
+    return (all ?? []).filter((inst) => !linkedIds.has(inst?._id ?? inst?.id));
   }, [all, linkedIds]);
 
   async function onSubmit(e) {
@@ -70,13 +87,6 @@ export default function EstudianteInstituciones() {
     try {
       setSaving(true);
       setError("");
-
-      console.log("DEBUG LINK:", {
-      studentId,
-      institutionId,
-      start,
-      end,
-    });
 
       await StudentsService.linkInstitution(studentId, {
         institution_id: institutionId,
@@ -89,7 +99,12 @@ export default function EstudianteInstituciones() {
       setEnd("");
       await load();
     } catch (e2) {
-      setError(e2?.response?.data?.detail || e2?.message || "No se pudo asociar.");
+      setError(
+        e2?.response?.data?.detail ||
+        e2?.response?.data?.message ||
+        e2?.message ||
+        "No se pudo asociar."
+      );
     } finally {
       setSaving(false);
     }
@@ -128,16 +143,23 @@ export default function EstudianteInstituciones() {
                 <th className="th">Nombre</th>
                 <th className="th">País</th>
                 <th className="th">Dirección</th>
+                <th className="th">Start</th>
+                <th className="th">End</th>
               </tr>
             </thead>
             <tbody>
-              {linked.map((i) => (
-                <tr key={i._id ?? i.id} className="tr">
-                  <td className="td">{i.name ?? "-"}</td>
-                  <td className="td">{i.country ?? "-"}</td>
-                  <td className="td">{i.address ?? "-"}</td>
-                </tr>
-              ))}
+              {linked.map((rel) => {
+                const inst = rel?.institution || {};
+                return (
+                  <tr key={inst._id ?? inst.id} className="tr">
+                    <td className="td">{inst.name ?? "-"}</td>
+                    <td className="td">{inst.country ?? "-"}</td>
+                    <td className="td">{inst.address ?? "-"}</td>
+                    <td className="td">{rel?.startDate ?? "-"}</td>
+                    <td className="td">{rel?.endDate ?? "-"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -149,7 +171,12 @@ export default function EstudianteInstituciones() {
         <form className="form" onSubmit={onSubmit}>
           <label className="label">
             Institución
-            <select className="input" value={institutionId} onChange={(e) => setInstitutionId(e.target.value)} disabled={loading}>
+            <select
+              className="input"
+              value={institutionId}
+              onChange={(e) => setInstitutionId(e.target.value)}
+              disabled={loading}
+            >
               <option value="">{loading ? "Cargando..." : "Seleccionar"}</option>
               {available.map((i) => (
                 <option key={i._id ?? i.id} value={i._id ?? i.id}>
@@ -161,12 +188,22 @@ export default function EstudianteInstituciones() {
 
           <label className="label">
             Start
-            <input className="input" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <input
+              className="input"
+              type="date"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+            />
           </label>
 
           <label className="label">
             End (opcional)
-            <input className="input" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+            <input
+              className="input"
+              type="date"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+            />
           </label>
 
           <div className="actions">

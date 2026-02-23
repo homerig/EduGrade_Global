@@ -4,7 +4,7 @@ import { useLocation, useParams, useNavigate } from "react-router-dom";
 import "../../styles/ui.css";
 import { COUNTRIES } from "../../constants/countries";
 import { HistoryService } from "../../services/history.service";
-import { ExamsService } from "../../services/exams.service";
+import { ExamServices } from "../../services/exams.service";
 
 function todayISO() {
   const d = new Date();
@@ -134,7 +134,7 @@ export default function HistorialAcademico() {
 
       console.log("[EXAMS] request params:", params);
 
-      const res = await ExamsService.list(params);
+      const res = await ExamServices.list(params);
       const data = res?.data;
 
       console.log("[EXAMS] response:", data);
