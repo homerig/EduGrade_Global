@@ -61,7 +61,6 @@ function App() {
           <Route path="/instituciones/crear" element={<CrearInstitucion />} />
           <Route path="/materias/consultar" element={<ConsultarMaterias />} />
           <Route path="/materias/crear" element={<CrearMateria />} />
-          <Route path="/calificaciones/agregar" element={<AgregarCalificacion />} />
           <Route path="/estudiantes/:id/historial" element={<HistorialAcademico />} />
           <Route path="/reportes/dashboard" element={<DashboardReportes />} />
           <Route path="/estudiantes/:id/calificaciones/agregar" element={<AgregarCalificacion />} />
