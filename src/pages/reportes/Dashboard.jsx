@@ -1,41 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import "../../styles/ui.css";
-import { DashboardServices } from "../../services/dashboard.services";
+import { DashboardServices } from "../../services/dashboard.service";
 import { OptionsService } from "../../services/options.service";
 import { InstitutionsService } from "../../services/institutions.service";
-
-function normalizeCountriesPayload(payload) {
-  // 1) objeto: { "country-ARG": "Argentina", ... }
-  // 2) array: [{ key: "country-ARG", value: "Argentina" }, ...]
-  if (!payload) return [];
-
-  if (typeof payload === "object" && !Array.isArray(payload)) {
-    return Object.entries(payload)
-      .map(([key, value]) => {
-        const iso3 = String(key).replace(/^country-/, "").trim();
-        const name = String(value ?? "").trim();
-        if (!iso3 || !name) return null;
-        return { iso3, name };
-      })
-      .filter(Boolean);
-  }
-
-  if (Array.isArray(payload)) {
-    return payload
-      .map((row) => {
-        if (!row || typeof row !== "object") return null;
-        const k = row.key ?? row.k ?? row.code ?? row.iso3 ?? "";
-        const v = row.value ?? row.v ?? row.name ?? "";
-        const iso3 = String(k).replace(/^country-/, "").trim();
-        const name = String(v).trim();
-        if (!iso3 || !name) return null;
-        return { iso3, name };
-      })
-      .filter(Boolean);
-  }
-
-  return [];
-}
 
 function normalizeList(data) {
   if (!data) return [];
@@ -44,78 +11,95 @@ function normalizeList(data) {
   return [];
 }
 
-function parseMaxFromDisplaySystem(displaySystem) {
-  // ejemplo: "ARG_1_10" -> 10
-  const s = String(displaySystem ?? "");
-  const parts = s.split("_");
-  const maybeMax = parts[parts.length - 1];
-  const max = Number(maybeMax);
-  return Number.isFinite(max) && max > 0 ? max : null;
-}
+function normalizeKeyValueOptions(payload) {
+  // soporta objeto key->value o array {key,value}
+  if (!payload) return [];
 
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
+  if (typeof payload === "object" && !Array.isArray(payload)) {
+    return Object.entries(payload).map(([key, value]) => ({
+      key: String(key),
+      value: String(value ?? key),
+    }));
+  }
+
+  if (Array.isArray(payload)) {
+    return payload
+      .map((row) => {
+        if (!row || typeof row !== "object") return null;
+        const k = row.key ?? row.k ?? row.code ?? "";
+        const v = row.value ?? row.v ?? row.name ?? k;
+        if (!k) return null;
+        return { key: String(k), value: String(v) };
+      })
+      .filter(Boolean);
+  }
+
+  return [];
 }
 
 export default function DashboardReportes() {
-  // filtros
-  const [country, setCountry] = useState(""); // requerido por API
-  const [institutionId, setInstitutionId] = useState(""); // opcional
-  const [targetSystem, setTargetSystem] = useState(""); // opcional (si vacío -> undefined)
+  const [country, setCountry] = useState("");
+  const [institutionId, setInstitutionId] = useState("");
 
-  // data
-  const [summary, setSummary] = useState(null); // response de /api/dashboard
-  const [subjects, setSubjects] = useState([]); // subjects[] de /api/dashboard/subjects
+  // 🔹 targetSystem ahora siempre existe (default ZA)
+  const [targetSystem, setTargetSystem] = useState("ZA");
 
-  // options
+  const [summary, setSummary] = useState(null);
+  const [subjects, setSubjects] = useState([]);
+
   const [countries, setCountries] = useState([]);
   const [institutions, setInstitutions] = useState([]);
+  const [systems, setSystems] = useState([]);
 
-  // ui state
   const [loading, setLoading] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [error, setError] = useState("");
   const [sortByAvgDesc, setSortByAvgDesc] = useState(true);
 
-  const countryLabelByIso3 = useMemo(() => {
-    const m = new Map();
-    for (const c of countries) m.set(c.iso3, c.name);
-    return m;
-  }, [countries]);
-
-  const selectedCountryLabel = useMemo(() => {
-    if (!country) return "";
-    const name = countryLabelByIso3.get(country);
-    return name ? `${country} - ${name}` : country;
-  }, [country, countryLabelByIso3]);
-
-  // Cargar países + instituciones
+  // ===== LOAD OPTIONS =====
   useEffect(() => {
     async function loadOptions() {
       try {
-        const [countriesRes, instRes] = await Promise.all([
+        const [countriesRes, instRes, sysRes] = await Promise.all([
           OptionsService.listCountries(),
-          InstitutionsService.list(),
+          InstitutionsService.list({ limit: 500, skip: 0 }),
+          OptionsService.listSystem(),
         ]);
 
         const cData = countriesRes?.data;
         const cPayload = Array.isArray(cData) ? cData : cData?.items ?? cData;
-        setCountries(
-          normalizeCountriesPayload(cPayload).sort((a, b) => a.iso3.localeCompare(b.iso3))
+
+        const normalizedCountries = normalizeKeyValueOptions(cPayload).map(
+          (c) => ({
+            iso3: c.key.replace(/^country-/, ""),
+            name: c.value,
+          })
         );
 
-        const instList = normalizeList(instRes?.data);
-        setInstitutions(instList);
+        setCountries(normalizedCountries);
+        setInstitutions(normalizeList(instRes?.data));
+
+        const sysPayload =
+          sysRes?.data?.items ?? sysRes?.data ?? [];
+
+        const normalizedSystems = normalizeKeyValueOptions(sysPayload);
+        setSystems(normalizedSystems);
+
+        // Si existe ZA en options, aseguramos default correcto
+        if (normalizedSystems.some((s) => s.key === "ZA")) {
+          setTargetSystem("ZA");
+        }
       } catch {
-        // si falla options, no rompemos; solo queda vacío
         setCountries([]);
         setInstitutions([]);
+        setSystems([]);
       }
     }
+
     loadOptions();
   }, []);
 
-  // cargar summary cuando cambia country/inst/target
+  // ===== LOAD SUMMARY =====
   useEffect(() => {
     async function loadSummary() {
       if (!country) {
@@ -131,7 +115,7 @@ export default function DashboardReportes() {
         const res = await DashboardServices.get({
           country,
           institutionId: institutionId || undefined,
-          targetSystem: targetSystem || undefined,
+          targetSystem,
         });
 
         setSummary(res?.data ?? null);
@@ -152,7 +136,7 @@ export default function DashboardReportes() {
     loadSummary();
   }, [country, institutionId, targetSystem]);
 
-  // cargar subjects cuando hay institutionId
+  // ===== LOAD SUBJECTS =====
   useEffect(() => {
     async function loadSubjects() {
       if (!country || !institutionId) {
@@ -167,7 +151,7 @@ export default function DashboardReportes() {
         const res = await DashboardServices.getBySubjects({
           country,
           institutionId,
-          targetSystem: targetSystem || undefined,
+          targetSystem,
         });
 
         const list = res?.data?.subjects ?? [];
@@ -178,7 +162,7 @@ export default function DashboardReportes() {
           e?.response?.data?.detail ||
           e?.response?.data?.message ||
           e?.message ||
-          "No se pudo cargar el desglose por materias."
+          "No se pudo cargar materias."
         );
       } finally {
         setLoadingSubjects(false);
@@ -188,23 +172,11 @@ export default function DashboardReportes() {
     loadSubjects();
   }, [country, institutionId, targetSystem]);
 
-  const maxScale = useMemo(() => {
-    return parseMaxFromDisplaySystem(summary?.displaySystem);
-  }, [summary]);
-
-  const percent = useMemo(() => {
-    // preferimos displayValue si es numérico (porque está en targetSystem), fallback averageZA
-    const dv = Number(summary?.displayValue);
-    const base = Number.isFinite(dv) ? dv : Number(summary?.averageZA);
-    if (!Number.isFinite(base) || !maxScale) return null;
-    return clamp((base / maxScale) * 100, 0, 100);
-  }, [summary, maxScale]);
-
   const sortedSubjects = useMemo(() => {
-    const arr = [...(subjects ?? [])];
+    const arr = [...subjects];
     arr.sort((a, b) => {
-      const av = Number(a?.displayValue ?? a?.averageZA ?? 0);
-      const bv = Number(b?.displayValue ?? b?.averageZA ?? 0);
+      const av = Number(a?.displayValue ?? 0);
+      const bv = Number(b?.displayValue ?? 0);
       return sortByAvgDesc ? bv - av : av - bv;
     });
     return arr;
@@ -214,7 +186,7 @@ export default function DashboardReportes() {
     <div className="page dashboardPage">
       <h1 className="pageTitle">Dashboard Académico</h1>
 
-      {/* FILTROS (estilo similar a otras pantallas) */}
+      {/* FILTROS */}
       <div className="card dashboardFilters" style={{ marginBottom: 14 }}>
         <div className="filtersGrid">
           <label className="label">
@@ -237,14 +209,14 @@ export default function DashboardReportes() {
           </label>
 
           <label className="label">
-            Institución (opcional)
+            Institución
             <select
               className="input"
               value={institutionId}
               onChange={(e) => setInstitutionId(e.target.value)}
               disabled={!country}
             >
-              <option value="">{!country ? "Elegí país primero" : "Todas (promedio país)"}</option>
+              <option value="">Promedio país</option>
               {institutions.map((i) => (
                 <option key={i._id ?? i.id} value={i._id ?? i.id}>
                   {i.name ?? "(Sin nombre)"}
@@ -254,33 +226,20 @@ export default function DashboardReportes() {
           </label>
 
           <label className="label">
-            targetSystem (opcional)
-            <input
+            Sistema de calificación
+            <select
               className="input"
               value={targetSystem}
               onChange={(e) => setTargetSystem(e.target.value)}
-              placeholder="Ej: ARG_1_10"
               disabled={!country}
-            />
+            >
+              {systems.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.key} - {s.value}
+                </option>
+              ))}
+            </select>
           </label>
-        </div>
-
-        <div className="actions" style={{ marginTop: 12 }}>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => {
-              setCountry("");
-              setInstitutionId("");
-              setTargetSystem("");
-              setSummary(null);
-              setSubjects([]);
-              setError("");
-            }}
-            disabled={loading || loadingSubjects}
-          >
-            Limpiar
-          </button>
         </div>
       </div>
 
@@ -288,71 +247,48 @@ export default function DashboardReportes() {
 
       {!country ? (
         <div className="card">
-          <p className="mutedText" style={{ margin: 0 }}>
-            Seleccioná un <b>país</b> para ver el promedio en su sistema objetivo (targetSystem).
-          </p>
+          Seleccioná un país para visualizar métricas.
         </div>
       ) : loading ? (
         <div className="card">Cargando métricas...</div>
       ) : !summary ? (
-        <div className="card">Sin datos para los filtros seleccionados.</div>
+        <div className="card">Sin datos disponibles.</div>
       ) : (
         <>
           {/* HEADER RESUMEN */}
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="dashboardHeader">
               <div>
-                <div className="mutedText">Contexto</div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>
-                  {selectedCountryLabel}
-                  {institutionId ? " · Institución" : " · Promedio país"}
-                </div>
-                <div className="mutedText">
-                  Sistema: <b>{summary.displaySystem ?? "—"}</b>
+                <div className="mutedText">Sistema de calificación</div>
+                <div style={{ fontWeight: 700 }}>
+                  {summary.displaySystem}
                 </div>
               </div>
 
               <div style={{ textAlign: "right" }}>
-                <div className="mutedText">Promedio (en sistema objetivo)</div>
+                <div className="mutedText">Promedio</div>
                 <div className="dashboardBigValue">
-                  {summary.displayValue ?? "—"}
+                  {summary.displayValue}
                 </div>
-              </div>
-            </div>
-
-            {/* “Gauge” simple con barra */}
-            <div style={{ marginTop: 12 }}>
-              <div className="dashboardBarRow">
-                <div className="mutedText">Progreso</div>
-                <div className="mutedText">
-                  {maxScale ? `0 – ${maxScale}` : "Escala desconocida"}
-                </div>
-              </div>
-
-              <div className="barTrack" aria-label="Average progress">
-                <div
-                  className="barFill"
-                  style={{ width: percent == null ? "0%" : `${percent}%` }}
-                />
               </div>
             </div>
           </div>
 
-          {/* KPI GRID */}
+          {/* KPI */}
           <div className="kpiGrid" style={{ marginBottom: 14 }}>
             <div className="kpiCard">
               <div className="kpiTitle">Exámenes leídos</div>
-              <div className="kpiValue">{summary.examsRead ?? 0}</div>
+              <div className="kpiValue">{summary.examsRead}</div>
             </div>
 
             <div className="kpiCard">
               <div className="kpiTitle">Usados en promedio</div>
-              <div className="kpiValue">{summary.examsUsedInAverage ?? 0}</div>
+              <div className="kpiValue">{summary.examsUsedInAverage}</div>
             </div>
 
             <div className="kpiCard">
-              <div className="kpiTitle">Promedio ZA (raw)</div>
-              <div className="kpiValue">{summary.averageZA ?? "—"}</div>
+              <div className="kpiTitle">Promedio ZA</div>
+              <div className="kpiValue">{summary.averageZA}</div>
             </div>
           </div>
 
@@ -361,28 +297,25 @@ export default function DashboardReportes() {
             <div className="dashboardSectionHeader">
               <h3 style={{ margin: 0 }}>Desglose por materias</h3>
 
-              <div className="actions" style={{ margin: 0 }}>
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => setSortByAvgDesc((v) => !v)}
-                  disabled={!institutionId || loadingSubjects}
-                  title="Ordenar por promedio"
-                >
-                  Orden: {sortByAvgDesc ? "Mayor → Menor" : "Menor → Mayor"}
-                </button>
-              </div>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => setSortByAvgDesc((v) => !v)}
+                disabled={!institutionId || loadingSubjects}
+              >
+                Orden: {sortByAvgDesc ? "Mayor → Menor" : "Menor → Mayor"}
+              </button>
             </div>
 
             {!institutionId ? (
               <p className="mutedText" style={{ marginTop: 10 }}>
-                Seleccioná una <b>institución</b> para ver el detalle por materias.
+                Seleccioná una institución para ver materias.
               </p>
             ) : loadingSubjects ? (
               <p style={{ marginTop: 10 }}>Cargando materias...</p>
             ) : sortedSubjects.length === 0 ? (
               <p className="mutedText" style={{ marginTop: 10 }}>
-                No hay materias para esta institución.
+                No hay materias disponibles.
               </p>
             ) : (
               <table className="table" style={{ marginTop: 10 }}>
@@ -391,37 +324,20 @@ export default function DashboardReportes() {
                     <th className="th">Materia</th>
                     <th className="th">Promedio</th>
                     <th className="th">Exámenes</th>
-                    <th className="th">Visual</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedSubjects.map((s) => {
-                    const sMax = parseMaxFromDisplaySystem(s.displaySystem) || maxScale;
-                    const sValNum = Number(s.displayValue);
-                    const sVal = Number.isFinite(sValNum) ? sValNum : Number(s.averageZA);
-                    const sPct =
-                      sMax && Number.isFinite(sVal) ? clamp((sVal / sMax) * 100, 0, 100) : 0;
-
-                    return (
-                      <tr key={s.subjectId} className="tr">
-                        <td className="td">{s.subjectName ?? "(Sin nombre)"}</td>
-                        <td className="td">
-                          <b>{s.displayValue ?? "—"}</b>{" "}
-                          <span className="mutedText">
-                            {s.displaySystem ? `(${s.displaySystem})` : ""}
-                          </span>
-                        </td>
-                        <td className="td">
-                          {s.examsUsedInAverage ?? 0}/{s.examsRead ?? 0}
-                        </td>
-                        <td className="td" style={{ minWidth: 180 }}>
-                          <div className="barTrack" style={{ height: 10 }}>
-                            <div className="barFill" style={{ width: `${sPct}%` }} />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {sortedSubjects.map((s) => (
+                    <tr key={s.subjectId}>
+                      <td className="td">{s.subjectName}</td>
+                      <td className="td">
+                        <b>{s.displayValue}</b>
+                      </td>
+                      <td className="td">
+                        {s.examsUsedInAverage}/{s.examsRead}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}
