@@ -1,7 +1,4 @@
 /* ===== Layout base ===== */
-.page {
-  max-width: 980px;
-}
 
 .pageTitle {
   margin: 0 0 14px;
@@ -19,6 +16,7 @@
   text-decoration: none;
   font-weight: 600;
 }
+
 .linkPrimary:hover {
   text-decoration: underline;
 }
@@ -35,7 +33,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 22px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
 }
 
 /* ===== Table ===== */
@@ -81,7 +79,6 @@
 .form {
   display: grid;
   gap: 14px;
-  max-width: 560px;
 }
 
 .label {
@@ -96,8 +93,10 @@
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid #d1d5db;
-  background: #f3f4f6; /* gris claro */
-  color: #111827;      /* texto oscuro */
+  background: #f3f4f6;
+  /* gris claro */
+  color: #111827;
+  /* texto oscuro */
   outline: none;
 }
 

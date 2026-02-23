@@ -22,7 +22,6 @@ export default function ConsultarEstudiantes() {
       setLoading(true);
 
       const res = await StudentsService.list({
-        firstName: firstName || undefined,
         lastName: lastName || undefined,
         nationality: nationality || undefined,
         identity: identity || undefined,

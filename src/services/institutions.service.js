@@ -23,4 +23,5 @@ export const InstitutionsService = {
 
   // ✅ NUEVO
   listByStudent: (studentId) => http.get(`/api/institutions/by-student/${studentId}`),
+  listSubjects: (institutionId) => http.get(`/api/institutions/${institutionId}/subjects`),
 };
