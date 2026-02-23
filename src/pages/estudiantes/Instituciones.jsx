@@ -71,6 +71,13 @@ export default function EstudianteInstituciones() {
       setSaving(true);
       setError("");
 
+      console.log("DEBUG LINK:", {
+      studentId,
+      institutionId,
+      start,
+      end,
+    });
+
       await StudentsService.linkInstitution(studentId, {
         institution_id: institutionId,
         start,

@@ -5,10 +5,11 @@ export const SubjectsService = {
   listByInstitution: (institutionMongoId) =>
     http.get(`/api/institutions/${institutionMongoId}/subjects`),
 
-  // POST /api/institutions/{institution_id}/subjects
-  // body esperado por tu endpoint: { name }
+  // POST /api/institutions/{institutionMongoId}/subjects?name=...
   createForInstitution: (institutionMongoId, data) =>
-    http.post(`/api/institutions/${institutionMongoId}/subjects`, {
-      name: data.name,
-    }),
+    http.post(
+      `/api/institutions/${institutionMongoId}/subjects`,
+      null,
+      { params: { name: data.name } }
+    ),
 };
