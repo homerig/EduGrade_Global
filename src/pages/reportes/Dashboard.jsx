@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "../../styles/ui.css";
-import { DashboardServices } from "../../services/dashboard.service";
+import { DashboardServices } from "../../services/dashboard.services";
 import { OptionsService } from "../../services/options.service";
 import { InstitutionsService } from "../../services/institutions.service";
 
